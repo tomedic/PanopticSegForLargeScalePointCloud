@@ -662,7 +662,7 @@ class PanopticTracker(SegmentationTracker):
                         if size_l < 10:
                             full_ins_pred[label_mask_l] = -1
                             
-                    self.dataset.to_eval_ply(
+                    self._dataset.to_eval_ply(
                         test_area_i.pos,
                         full_ins_pred.numpy(), #[-1, ...]
                         test_area_i.instance_labels, #[0, ..]
