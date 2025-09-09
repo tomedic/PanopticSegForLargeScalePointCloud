@@ -1,22 +1,20 @@
 import numpy as np
 import torch
-import random
 
 from torch_points3d.datasets.base_dataset import BaseDataset, save_used_properties
 from torch_points3d.datasets.segmentation.npm3d import NPM3DSphere, NPM3DCylinder, INV_OBJECT_LABEL
-import torch_points3d.core.data_transform as cT
-#from torch_points3d.metrics.panoptic_tracker import PanopticTracker
-from torch_points3d.metrics.panoptic_tracker_npm3d import MyPanopticTracker
+
+# from torch_points3d.metrics.panoptic_tracker import PanopticTracker
 from torch_points3d.metrics.panoptic_tracker_pointgroup_npm3d import PanopticTracker
 from torch_points3d.datasets.panoptic.utils import set_extra_labels
 from plyfile import PlyData, PlyElement
 import os
 from scipy import stats
-from torch_points3d.models.panoptic.ply import read_ply, write_ply
+from torch_points3d.models.panoptic.ply import write_ply
 
-#-1 means unlabelled semantic classes
+# -1 means unlabelled semantic classes
 CLASSES_INV = {
-    #0: "unclassified",
+    # 0: "unclassified",
     0: "ground",
     1: "buildings",
     2: "poles",
@@ -30,7 +28,7 @@ CLASSES_INV = {
 
 OBJECT_COLOR = np.asarray(
     [
-        #[233, 229, 107],  # 'unclassified' .-> .yellow
+        # [233, 229, 107],  # 'unclassified' .-> .yellow
         [95, 156, 196],  # 'ground' .-> . blue
         [179, 116, 81],  # 'buildings'  ->  brown
         [241, 149, 131],  # 'poles'  ->  salmon
@@ -44,10 +42,11 @@ OBJECT_COLOR = np.asarray(
     ]
 )
 
-VALID_CLASS_IDS = [0,1,2,3,4,5,6,7,8]
-SemIDforInstance = np.array([2,3,4,6,7,8])
+VALID_CLASS_IDS = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+SemIDforInstance = np.array([2, 3, 4, 6, 7, 8])
 
 ################################### UTILS #######################################
+
 
 def to_ply(pos, label, file):
     assert len(label.shape) == 1
@@ -63,10 +62,11 @@ def to_ply(pos, label, file):
     ply_array["red"] = colors[:, 0]
     ply_array["green"] = colors[:, 1]
     ply_array["blue"] = colors[:, 2]
-    el = PlyElement.describe(ply_array, 'vertex')
+    el = PlyElement.describe(ply_array, "vertex")
     PlyData([el], text=True).write(file)
-    print('out')
-    
+    print("out")
+
+
 def to_eval_ply(pos, pre_label, gt, file):
     assert len(pre_label.shape) == 1
     assert len(gt.shape) == 1
@@ -81,15 +81,16 @@ def to_eval_ply(pos, pre_label, gt, file):
     ply_array["z"] = pos[:, 2]
     ply_array["preds"] = np.asarray(pre_label)
     ply_array["gt"] = np.asarray(gt)
-    el = PlyElement.describe(ply_array, 'vertex')
+    el = PlyElement.describe(ply_array, "vertex")
     PlyData([el], text=True).write(file)
-    
+
+
 def to_ins_ply(pos, label, file):
     assert len(label.shape) == 1
     assert pos.shape[0] == label.shape[0]
     pos = np.asarray(pos)
-    max_instance = np.max(np.asarray(label)).astype(np.int32)+1
-    rd_colors = np.random.randint(255, size=(max_instance,3), dtype=np.uint8)
+    max_instance = np.max(np.asarray(label)).astype(np.int32) + 1
+    rd_colors = np.random.randint(255, size=(max_instance, 3), dtype=np.uint8)
     colors = rd_colors[np.asarray(label).astype(int)]
     ply_array = np.ones(
         pos.shape[0], dtype=[("x", "f4"), ("y", "f4"), ("z", "f4"), ("red", "u1"), ("green", "u1"), ("blue", "u1")]
@@ -100,27 +101,30 @@ def to_ins_ply(pos, label, file):
     ply_array["red"] = colors[:, 0]
     ply_array["green"] = colors[:, 1]
     ply_array["blue"] = colors[:, 2]
-    el = PlyElement.describe(ply_array, 'vertex')
+    el = PlyElement.describe(ply_array, "vertex")
     PlyData([el], text=True).write(file)
-    
-#new version of final evaluation (some semantic classes do not have any point with GT label)   
+
+
+# new version of final evaluation (some semantic classes do not have any point with GT label)
 def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
     NUM_CLASSES = 10
     NUM_CLASSES_count = 9
-    #class index for instance segmenatation
-    ins_classcount = [3,4,5,7,8,9] 
-    #class index for stuff segmentation
-    stuff_classcount = [1,2,6]
-    #class index for semantic segmenatation
-    sem_classcount = [1,2,3,4,5,6,7,8,9] 
-    #class index for semantic classes with gt points
+    # class index for instance segmenatation
+    ins_classcount = [3, 4, 5, 7, 8, 9]
+    # class index for stuff segmentation
+    stuff_classcount = [1, 2, 6]
+    # class index for semantic segmenatation
+    sem_classcount = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    # class index for semantic classes with gt points
     sem_classcount_have = []
     # Initialize...
-    LOG_FOUT = open('evaluation.txt', 'a')
+    LOG_FOUT = open("evaluation.txt", "a")
+
     def log_string(out_str):
-        LOG_FOUT.write(out_str+'\n')
+        LOG_FOUT.write(out_str + "\n")
         LOG_FOUT.flush()
         print(out_str)
+
     # acc and macc
     true_positive_classes = np.zeros(NUM_CLASSES)
     positive_classes = np.zeros(NUM_CLASSES)
@@ -138,11 +142,13 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
     all_mean_weighted_cov = [[] for itmp in range(NUM_CLASSES)]
 
     pred_ins_complete = np.asarray(pre_ins_offset).reshape(-1).astype(np.int)
-    pred_sem_complete = np.asarray(pre_sem).reshape(-1).astype(np.int)+1
+    pred_sem_complete = np.asarray(pre_sem).reshape(-1).astype(np.int) + 1
     gt_ins_complete = np.asarray(gt_ins).reshape(-1).astype(np.int)
-    gt_sem_complete = np.asarray(gt_sem).reshape(-1).astype(np.int)+1
+    gt_sem_complete = np.asarray(gt_sem).reshape(-1).astype(np.int) + 1
 
-    idxc = ((gt_sem_complete!=0) & (gt_sem_complete!=1) & (gt_sem_complete!=2) &  (gt_sem_complete!=6)) | ((pred_sem_complete!=0) & (pred_sem_complete!=1) & (pred_sem_complete!=2) &  (pred_sem_complete!=6))
+    idxc = ((gt_sem_complete != 0) & (gt_sem_complete != 1) & (gt_sem_complete != 2) & (gt_sem_complete != 6)) | (
+        (pred_sem_complete != 0) & (pred_sem_complete != 1) & (pred_sem_complete != 2) & (pred_sem_complete != 6)
+    )
     pred_ins = pred_ins_complete[idxc]
     gt_ins = gt_ins_complete[idxc]
     pred_sem = pred_sem_complete[idxc]
@@ -155,14 +161,14 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
         pred_l = int(pred_sem_complete[j])
         gt_classes[gt_l] += 1
         positive_classes[pred_l] += 1
-        true_positive_classes[gt_l] += int(gt_l==pred_l) 
+        true_positive_classes[gt_l] += int(gt_l == pred_l)
 
     # semantic results
     iou_list = []
     for i in range(NUM_CLASSES):
         if gt_classes[i] > 0:
             sem_classcount_have.append(i)
-            iou = true_positive_classes[i]/float(gt_classes[i]+positive_classes[i]-true_positive_classes[i]) 
+            iou = true_positive_classes[i] / float(gt_classes[i] + positive_classes[i] - true_positive_classes[i])
         else:
             iou = 0.0
         iou_list.append(iou)
@@ -171,18 +177,22 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
     set2 = set(sem_classcount_have)
     set3 = set1 & set2
     sem_classcount_final = list(set3)
-    
+
     set1 = set(stuff_classcount)
     set2 = set(sem_classcount_have)
     set3 = set1 & set2
     stuff_classcount_final = list(set3)
-    
-    log_string('Semantic Segmentation oAcc: {}'.format(sum(true_positive_classes)/float(sum(positive_classes))))
-    #log_string('Semantic Segmentation Acc: {}'.format(true_positive_classes / gt_classes))
-    log_string('Semantic Segmentation mAcc: {}'.format(np.mean(true_positive_classes[sem_classcount_final] / gt_classes[sem_classcount_final])))
-    log_string('Semantic Segmentation IoU: {}'.format(iou_list))
-    log_string('Semantic Segmentation mIoU: {}'.format(1.*sum(iou_list)/len(sem_classcount_final)))
-    log_string('  ')
+
+    log_string("Semantic Segmentation oAcc: {}".format(sum(true_positive_classes) / float(sum(positive_classes))))
+    # log_string('Semantic Segmentation Acc: {}'.format(true_positive_classes / gt_classes))
+    log_string(
+        "Semantic Segmentation mAcc: {}".format(
+            np.mean(true_positive_classes[sem_classcount_final] / gt_classes[sem_classcount_final])
+        )
+    )
+    log_string("Semantic Segmentation IoU: {}".format(iou_list))
+    log_string("Semantic Segmentation mIoU: {}".format(1.0 * sum(iou_list) / len(sem_classcount_final)))
+    log_string("  ")
 
     # instance
     un = np.unique(pred_ins)
@@ -190,7 +200,7 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
     for ig, g in enumerate(un):  # each object in prediction
         if g == -1:
             continue
-        tmp = (pred_ins == g)
+        tmp = pred_ins == g
         sem_seg_i = int(stats.mode(pred_sem[tmp])[0])
         pts_in_pred[sem_seg_i] += [tmp]
 
@@ -199,7 +209,7 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
     for ig, g in enumerate(un):
         if g == -1:
             continue
-        tmp = (gt_ins == g)
+        tmp = gt_ins == g
         sem_seg_i = int(stats.mode(gt_sem[tmp])[0])
         pts_in_gt[sem_seg_i] += [tmp]
 
@@ -214,12 +224,12 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
             all_mean_weighted_cov[i_sem].append(0)
             continue
         for ig, ins_gt in enumerate(pts_in_gt[i_sem]):
-            ovmax = 0.
+            ovmax = 0.0
             num_ins_gt_point = np.sum(ins_gt)
             num_gt_point += num_ins_gt_point
             for ip, ins_pred in enumerate(pts_in_pred[i_sem]):
-                union = (ins_pred | ins_gt)
-                intersect = (ins_pred & ins_gt)
+                union = ins_pred | ins_gt
+                intersect = ins_pred & ins_gt
                 iou = float(np.sum(intersect)) / np.sum(union)
 
                 if iou > ovmax:
@@ -236,7 +246,7 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
             mean_weighted_cov /= num_gt_point
             all_mean_weighted_cov[i_sem].append(mean_weighted_cov)
 
-    #print(all_mean_cov)
+    # print(all_mean_cov)
 
     # instance precision & recall
     if not os.path.exists("viz_for_tp_pre"):
@@ -246,49 +256,49 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
     for i_sem in range(NUM_CLASSES):
         if not pts_in_pred[i_sem]:
             continue
-        IoU_Tp_per=0
-        IoU_Mc_per=0
-        tp = [0.] * len(pts_in_pred[i_sem])
-        fp = [0.] * len(pts_in_pred[i_sem])
+        IoU_Tp_per = 0
+        IoU_Mc_per = 0
+        tp = [0.0] * len(pts_in_pred[i_sem])
+        fp = [0.0] * len(pts_in_pred[i_sem])
         if pts_in_gt[i_sem]:
-            total_gt_ins[i_sem] += len(pts_in_gt[i_sem]) 
+            total_gt_ins[i_sem] += len(pts_in_gt[i_sem])
         for ip, ins_pred in enumerate(pts_in_pred[i_sem]):
-            ovmax = -1.
+            ovmax = -1.0
             if not pts_in_gt[i_sem]:
                 fp[ip] = 1
-                val_name = os.path.join("viz_for_fp_pre", "sem"+str(i_sem)+"_fp"+str(ip))
-                write_ply(val_name,
-                    [pos_ins[ins_pred], pred_sem[ins_pred].astype('int32')],
-                    ['x', 'y', 'z', 'pre_sem_label'])
+                val_name = os.path.join("viz_for_fp_pre", "sem" + str(i_sem) + "_fp" + str(ip))
+                write_ply(
+                    val_name, [pos_ins[ins_pred], pred_sem[ins_pred].astype("int32")], ["x", "y", "z", "pre_sem_label"]
+                )
                 continue
             for ig, ins_gt in enumerate(pts_in_gt[i_sem]):
-                union = (ins_pred | ins_gt)
-                intersect = (ins_pred & ins_gt)
+                union = ins_pred | ins_gt
+                intersect = ins_pred & ins_gt
                 iou = float(np.sum(intersect)) / np.sum(union)
 
                 if iou > ovmax:
                     ovmax = iou
-                    
+
             if ovmax > 0:
                 IoU_Mc_per += ovmax
             if ovmax >= at:
                 tp[ip] = 1  # true
                 IoU_Tp_per += ovmax
-                
-                #output all tp instances 
-                val_name = os.path.join("viz_for_tp_pre", "sem"+str(i_sem)+"_tp"+str(ip))
-                write_ply(val_name,
-                    [pos_ins[ins_pred], pred_sem[ins_pred].astype('int32')],
-                    ['x', 'y', 'z', 'pre_sem_label'])
-                
+
+                # output all tp instances
+                val_name = os.path.join("viz_for_tp_pre", "sem" + str(i_sem) + "_tp" + str(ip))
+                write_ply(
+                    val_name, [pos_ins[ins_pred], pred_sem[ins_pred].astype("int32")], ["x", "y", "z", "pre_sem_label"]
+                )
+
             else:
                 fp[ip] = 1  # false positive
-                
-                #output all fp instances
-                val_name = os.path.join("viz_for_fp_pre", "sem"+str(i_sem)+"_fp"+str(ip))
-                write_ply(val_name,
-                    [pos_ins[ins_pred], pred_sem[ins_pred].astype('int32')],
-                    ['x', 'y', 'z', 'pre_sem_label'])
+
+                # output all fp instances
+                val_name = os.path.join("viz_for_fp_pre", "sem" + str(i_sem) + "_fp" + str(ip))
+                write_ply(
+                    val_name, [pos_ins[ins_pred], pred_sem[ins_pred].astype("int32")], ["x", "y", "z", "pre_sem_label"]
+                )
 
         tpsins[i_sem] += tp
         fpsins[i_sem] += fp
@@ -313,7 +323,7 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
     ins_classcount_final = list(set3)
 
     ################################################################
-    ######  recall, precision, RQ, SQ, PQ, PQ_star for things ###### 
+    ######  recall, precision, RQ, SQ, PQ, PQ_star for things ######
     ################################################################
     for i_sem in ins_classcount:
         ###### metrics for offset ######
@@ -324,31 +334,31 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
         tp = np.sum(tp)
         fp = np.sum(fp)
         # recall and precision
-        if (total_gt_ins[i_sem])==0:
+        if (total_gt_ins[i_sem]) == 0:
             rec = 0
         else:
             rec = tp / total_gt_ins[i_sem]
-        if (tp + fp)==0:
+        if (tp + fp) == 0:
             prec = 0
         else:
             prec = tp / (tp + fp)
         precision[i_sem] = prec
         recall[i_sem] = rec
         # RQ, SQ, PQ and PQ_star
-        if (prec+rec)==0:
+        if (prec + rec) == 0:
             RQ[i_sem] = 0
         else:
-            RQ[i_sem] = 2*prec*rec/(prec+rec)
-        if tp==0:
+            RQ[i_sem] = 2 * prec * rec / (prec + rec)
+        if tp == 0:
             SQ[i_sem] = 0
         else:
-            SQ[i_sem] = IoU_Tp[i_sem]/tp
-        PQ[i_sem] = SQ[i_sem]*RQ[i_sem]
+            SQ[i_sem] = IoU_Tp[i_sem] / tp
+        PQ[i_sem] = SQ[i_sem] * RQ[i_sem]
         # PQStar[i_sem] = IoU_Mc[i_sem]/total_gt_ins[i_sem]
         PQStar[i_sem] = PQ[i_sem]
 
     ############################################
-    ######  RQ, SQ, PQ, PQ_star for stuff ###### 
+    ######  RQ, SQ, PQ, PQ_star for stuff ######
     ############################################
     for i_sem in stuff_classcount:
         if iou_list[i_sem] >= 0.5:
@@ -357,52 +367,55 @@ def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
         else:
             RQ[i_sem] = 0
             SQ[i_sem] = 0
-        PQ[i_sem] = SQ[i_sem]*RQ[i_sem]
+        PQ[i_sem] = SQ[i_sem] * RQ[i_sem]
         PQStar[i_sem] = iou_list[i_sem]
 
-    if np.mean(precision[ins_classcount_final])+np.mean(recall[ins_classcount_final])==0:
+    if np.mean(precision[ins_classcount_final]) + np.mean(recall[ins_classcount_final]) == 0:
         F1_score = 0.0
     else:
-        F1_score = (2*np.mean(precision[ins_classcount_final])*np.mean(recall[ins_classcount_final]))/(np.mean(precision[ins_classcount_final])+np.mean(recall[ins_classcount_final]))
+        F1_score = (2 * np.mean(precision[ins_classcount_final]) * np.mean(recall[ins_classcount_final])) / (
+            np.mean(precision[ins_classcount_final]) + np.mean(recall[ins_classcount_final])
+        )
     # instance results
-    log_string('Instance Segmentation for Offset:')
-    log_string('Instance Segmentation MUCov: {}'.format(MUCov[ins_classcount]))
-    log_string('Instance Segmentation mMUCov: {}'.format(np.mean(MUCov[ins_classcount_final])))
-    log_string('Instance Segmentation MWCov: {}'.format(MWCov[ins_classcount]))
-    log_string('Instance Segmentation mMWCov: {}'.format(np.mean(MWCov[ins_classcount_final])))
-    log_string('Instance Segmentation Precision: {}'.format(precision[ins_classcount]))
-    log_string('Instance Segmentation mPrecision: {}'.format(np.mean(precision[ins_classcount_final])))
-    log_string('Instance Segmentation Recall: {}'.format(recall[ins_classcount]))
-    log_string('Instance Segmentation mRecall: {}'.format(np.mean(recall[ins_classcount_final])))
-    log_string('Instance Segmentation F1 score: {}'.format(F1_score))
-    log_string('Instance Segmentation RQ: {}'.format(RQ[sem_classcount]))
-    log_string('Instance Segmentation meanRQ: {}'.format(np.mean(RQ[sem_classcount_final])))
-    log_string('Instance Segmentation SQ: {}'.format(SQ[sem_classcount]))
-    log_string('Instance Segmentation meanSQ: {}'.format(np.mean(SQ[sem_classcount_final])))
-    log_string('Instance Segmentation PQ: {}'.format(PQ[sem_classcount]))
-    log_string('Instance Segmentation meanPQ: {}'.format(np.mean(PQ[sem_classcount_final])))
-    log_string('Instance Segmentation PQ star: {}'.format(PQStar[sem_classcount]))
-    log_string('Instance Segmentation mean PQ star: {}'.format(np.mean(PQStar[sem_classcount_final])))
-    log_string('Instance Segmentation RQ (things): {}'.format(RQ[ins_classcount]))
-    log_string('Instance Segmentation meanRQ (things): {}'.format(np.mean(RQ[ins_classcount_final])))
-    log_string('Instance Segmentation SQ (things): {}'.format(SQ[ins_classcount]))
-    log_string('Instance Segmentation meanSQ (things): {}'.format(np.mean(SQ[ins_classcount_final])))
-    log_string('Instance Segmentation PQ (things): {}'.format(PQ[ins_classcount]))
-    log_string('Instance Segmentation meanPQ (things): {}'.format(np.mean(PQ[ins_classcount_final])))
-    log_string('Instance Segmentation RQ (stuff): {}'.format(RQ[stuff_classcount]))
-    log_string('Instance Segmentation meanRQ (stuff): {}'.format(np.mean(RQ[stuff_classcount_final])))
-    log_string('Instance Segmentation SQ (stuff): {}'.format(SQ[stuff_classcount]))
-    log_string('Instance Segmentation meanSQ (stuff): {}'.format(np.mean(SQ[stuff_classcount_final])))
-    log_string('Instance Segmentation PQ (stuff): {}'.format(PQ[stuff_classcount]))
-    log_string('Instance Segmentation meanPQ (stuff): {}'.format(np.mean(PQ[stuff_classcount_final])))
+    log_string("Instance Segmentation for Offset:")
+    log_string("Instance Segmentation MUCov: {}".format(MUCov[ins_classcount]))
+    log_string("Instance Segmentation mMUCov: {}".format(np.mean(MUCov[ins_classcount_final])))
+    log_string("Instance Segmentation MWCov: {}".format(MWCov[ins_classcount]))
+    log_string("Instance Segmentation mMWCov: {}".format(np.mean(MWCov[ins_classcount_final])))
+    log_string("Instance Segmentation Precision: {}".format(precision[ins_classcount]))
+    log_string("Instance Segmentation mPrecision: {}".format(np.mean(precision[ins_classcount_final])))
+    log_string("Instance Segmentation Recall: {}".format(recall[ins_classcount]))
+    log_string("Instance Segmentation mRecall: {}".format(np.mean(recall[ins_classcount_final])))
+    log_string("Instance Segmentation F1 score: {}".format(F1_score))
+    log_string("Instance Segmentation RQ: {}".format(RQ[sem_classcount]))
+    log_string("Instance Segmentation meanRQ: {}".format(np.mean(RQ[sem_classcount_final])))
+    log_string("Instance Segmentation SQ: {}".format(SQ[sem_classcount]))
+    log_string("Instance Segmentation meanSQ: {}".format(np.mean(SQ[sem_classcount_final])))
+    log_string("Instance Segmentation PQ: {}".format(PQ[sem_classcount]))
+    log_string("Instance Segmentation meanPQ: {}".format(np.mean(PQ[sem_classcount_final])))
+    log_string("Instance Segmentation PQ star: {}".format(PQStar[sem_classcount]))
+    log_string("Instance Segmentation mean PQ star: {}".format(np.mean(PQStar[sem_classcount_final])))
+    log_string("Instance Segmentation RQ (things): {}".format(RQ[ins_classcount]))
+    log_string("Instance Segmentation meanRQ (things): {}".format(np.mean(RQ[ins_classcount_final])))
+    log_string("Instance Segmentation SQ (things): {}".format(SQ[ins_classcount]))
+    log_string("Instance Segmentation meanSQ (things): {}".format(np.mean(SQ[ins_classcount_final])))
+    log_string("Instance Segmentation PQ (things): {}".format(PQ[ins_classcount]))
+    log_string("Instance Segmentation meanPQ (things): {}".format(np.mean(PQ[ins_classcount_final])))
+    log_string("Instance Segmentation RQ (stuff): {}".format(RQ[stuff_classcount]))
+    log_string("Instance Segmentation meanRQ (stuff): {}".format(np.mean(RQ[stuff_classcount_final])))
+    log_string("Instance Segmentation SQ (stuff): {}".format(SQ[stuff_classcount]))
+    log_string("Instance Segmentation meanSQ (stuff): {}".format(np.mean(SQ[stuff_classcount_final])))
+    log_string("Instance Segmentation PQ (stuff): {}".format(PQ[stuff_classcount]))
+    log_string("Instance Segmentation meanPQ (stuff): {}".format(np.mean(PQ[stuff_classcount_final])))
+
 
 class PanopticNPM3DBase:
     INSTANCE_CLASSES = CLASSES_INV.keys()
     NUM_MAX_OBJECTS = 200
-    
+
     STUFFCLASSES = torch.tensor([i for i in VALID_CLASS_IDS if i not in SemIDforInstance])
     ID2CLASS = {SemforInsid: i for i, SemforInsid in enumerate(list(SemIDforInstance))}
-        
+
     def __getitem__(self, idx):
         """
         Data object contains:
@@ -420,7 +433,7 @@ class PanopticNPM3DBase:
         return data
 
     def _set_extra_labels(self, data):
-        #return set_extra_labels(data, self.INSTANCE_CLASSES, self.NUM_MAX_OBJECTS)
+        # return set_extra_labels(data, self.INSTANCE_CLASSES, self.NUM_MAX_OBJECTS)
         return set_extra_labels(data, self.ID2CLASS, self.NUM_MAX_OBJECTS)
 
     def _remap_labels(self, semantic_label):
@@ -428,7 +441,7 @@ class PanopticNPM3DBase:
 
     @property
     def stuff_classes(self):
-        #return torch.tensor([0,1,5])
+        # return torch.tensor([0,1,5])
         return self._remap_labels(self.STUFFCLASSES)
 
 
@@ -449,7 +462,7 @@ class PanopticNPM3DCylinder(PanopticNPM3DBase, NPM3DCylinder):
 
 
 class NPM3DFusedDataset(BaseDataset):
-    """ Wrapper around NPM3DSphere that creates train and test datasets.
+    """Wrapper around NPM3DSphere that creates train and test datasets.
 
     Parameters
     ----------
@@ -519,13 +532,13 @@ class NPM3DFusedDataset(BaseDataset):
                 keep_instance=True,
             )
 
-        #if dataset_opt.class_weight_method:
+        # if dataset_opt.class_weight_method:
         #    self.add_weights(class_weight_method=dataset_opt.class_weight_method)
 
     @property
     def test_data(self):
         return self.test_dataset[0].raw_test_data
-        
+
     @property
     def test_data_spheres(self):
         return self.test_dataset[0]._test_spheres
@@ -533,9 +546,8 @@ class NPM3DFusedDataset(BaseDataset):
     @property  # type: ignore
     @save_used_properties
     def stuff_classes(self):
-        """ Returns a list of classes that are not instances
-        """
-        #return self.train_dataset.stuff_classes
+        """Returns a list of classes that are not instances"""
+        # return self.train_dataset.stuff_classes
         if self.train_dataset:
             return self.train_dataset.stuff_classes
         else:
@@ -543,7 +555,7 @@ class NPM3DFusedDataset(BaseDataset):
 
     @staticmethod
     def to_ply(pos, label, file):
-        """ Allows to save npm3d predictions to disk using s3dis color scheme
+        """Allows to save npm3d predictions to disk using s3dis color scheme
 
         Parameters
         ----------
@@ -558,7 +570,7 @@ class NPM3DFusedDataset(BaseDataset):
 
     @staticmethod
     def to_eval_ply(pos, pre_label, gt, file):
-        """ Allows to save npm3d predictions to disk for evaluation
+        """Allows to save npm3d predictions to disk for evaluation
 
         Parameters
         ----------
@@ -572,10 +584,10 @@ class NPM3DFusedDataset(BaseDataset):
             Save location
         """
         to_eval_ply(pos, pre_label, gt, file)
-        
+
     @staticmethod
     def to_ins_ply(pos, label, file):
-        """ Allows to save npm3d instance predictions to disk using random color
+        """Allows to save npm3d instance predictions to disk using random color
 
         Parameters
         ----------
@@ -587,7 +599,7 @@ class NPM3DFusedDataset(BaseDataset):
             Save location
         """
         to_ins_ply(pos, label, file)
-        
+
     @staticmethod
     def final_eval(pre_sem, pre_ins_embed, pre_ins_offset, pos, gt_sem, gt_ins):
 
@@ -604,4 +616,4 @@ class NPM3DFusedDataset(BaseDataset):
         """
 
         return PanopticTracker(self, wandb_log=wandb_log, use_tensorboard=tensorboard_log)
-        #return MyPanopticTracker(self, wandb_log=wandb_log, use_tensorboard=tensorboard_log)
+        # return MyPanopticTracker(self, wandb_log=wandb_log, use_tensorboard=tensorboard_log)

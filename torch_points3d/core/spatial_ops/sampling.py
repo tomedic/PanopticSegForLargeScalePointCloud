@@ -6,13 +6,11 @@ from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from torch_geometric.nn.pool.pool import pool_pos, pool_batch
 import torch_points_kernels as tp
 
-from torch_points3d.utils.config import is_list
-from torch_points3d.utils.enums import ConvolutionFormat
 
 
 class BaseSampler(ABC):
     """If num_to_sample is provided, sample exactly
-        num_to_sample points. Otherwise sample floor(pos[0] * ratio) points
+    num_to_sample points. Otherwise sample floor(pos[0] * ratio) points
     """
 
     def __init__(self, ratio=None, num_to_sample=None, subsampling_param=None):
@@ -52,7 +50,7 @@ class BaseSampler(ABC):
 
 class FPSSampler(BaseSampler):
     """If num_to_sample is provided, sample exactly
-        num_to_sample points. Otherwise sample floor(pos[0] * ratio) points
+    num_to_sample points. Otherwise sample floor(pos[0] * ratio) points
     """
 
     def sample(self, pos, batch, **kwargs):
@@ -65,7 +63,7 @@ class FPSSampler(BaseSampler):
 
 class GridSampler(BaseSampler):
     """If num_to_sample is provided, sample exactly
-        num_to_sample points. Otherwise sample floor(pos[0] * ratio) points
+    num_to_sample points. Otherwise sample floor(pos[0] * ratio) points
     """
 
     def sample(self, pos=None, x=None, batch=None):
@@ -83,11 +81,11 @@ class GridSampler(BaseSampler):
 
 class DenseFPSSampler(BaseSampler):
     """If num_to_sample is provided, sample exactly
-        num_to_sample points. Otherwise sample floor(pos[0] * ratio) points
+    num_to_sample points. Otherwise sample floor(pos[0] * ratio) points
     """
 
     def sample(self, pos, **kwargs):
-        """ Sample pos
+        """Sample pos
 
         Arguments:
             pos -- [B, N, 3]
@@ -102,7 +100,7 @@ class DenseFPSSampler(BaseSampler):
 
 class RandomSampler(BaseSampler):
     """If num_to_sample is provided, sample exactly
-        num_to_sample points. Otherwise sample floor(pos[0] * ratio) points
+    num_to_sample points. Otherwise sample floor(pos[0] * ratio) points
     """
 
     def sample(self, pos, batch, **kwargs):
@@ -114,9 +112,9 @@ class RandomSampler(BaseSampler):
 
 class DenseRandomSampler(BaseSampler):
     """If num_to_sample is provided, sample exactly
-        num_to_sample points. Otherwise sample floor(pos[0] * ratio) points
-        Arguments:
-            pos -- [B, N, 3]
+    num_to_sample points. Otherwise sample floor(pos[0] * ratio) points
+    Arguments:
+        pos -- [B, N, 3]
     """
 
     def sample(self, pos, **kwargs):

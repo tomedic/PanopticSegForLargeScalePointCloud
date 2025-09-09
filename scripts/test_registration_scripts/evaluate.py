@@ -2,8 +2,8 @@
 compute features, evaluate metrics and save results
 only axcept fragment
 """
+
 import copy
-import open3d
 import torch
 import hydra
 import logging
@@ -20,7 +20,7 @@ ROOT = os.path.join(DIR, "..", "..")
 sys.path.insert(0, ROOT)
 
 from torch_points3d.models.model_factory import instantiate_model
-from torch_points3d.datasets.dataset_factory import instantiate_dataset, get_dataset_class
+from torch_points3d.datasets.dataset_factory import instantiate_dataset
 from torch_points3d.models.base_model import BaseModel
 from torch_points3d.datasets.base_dataset import BaseDataset
 
@@ -149,7 +149,11 @@ def run(model: BaseModel, dataset: BaseDataset, device, cfg):
         reg_thresh = 0.2
     print(time.strftime("%Y%m%d-%H%M%S"))
     dataset.create_dataloaders(
-        model, 1, False, cfg.training.num_workers, False,
+        model,
+        1,
+        False,
+        cfg.training.num_workers,
+        False,
     )
     loader = dataset.test_dataloaders[0]
     list_res = []

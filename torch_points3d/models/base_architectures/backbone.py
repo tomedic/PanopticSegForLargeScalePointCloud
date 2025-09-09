@@ -1,27 +1,10 @@
 from torch import nn
-from torch_geometric.nn import (
-    global_max_pool,
-    global_mean_pool,
-    fps,
-    radius,
-    knn_interpolate,
-)
-from torch.nn import (
-    Linear as Lin,
-    ReLU,
-    LeakyReLU,
-    BatchNorm1d as BN,
-    Dropout,
-)
-from omegaconf.listconfig import ListConfig
 from omegaconf.dictconfig import DictConfig
 import logging
 
 from torch_points3d.datasets.base_dataset import BaseDataset
 from torch_points3d.models.base_model import BaseModel
 from torch_points3d.models.base_architectures import BaseFactory
-from torch_points3d.core.common_modules.base_modules import Identity
-from torch_points3d.core.losses import instantiate_loss_or_miner
 from torch_points3d.utils.config import is_list
 
 log = logging.getLogger(__name__)
@@ -53,7 +36,6 @@ class BackboneBasedModel(BaseModel):
             self._spatial_ops_dict["neighbour_finder"] = [neighbour_finder] + self._spatial_ops_dict["neighbour_finder"]
 
     def __init__(self, opt, model_type, dataset: BaseDataset, modules_lib):
-
         """Construct a backbone generator (It is a simple down module)
         Parameters:
             opt - options for the network generation
@@ -128,7 +110,7 @@ class BackboneBasedModel(BaseModel):
         return args
 
     def _fetch_arguments(self, conv_opt, index, flow="DOWN"):
-        """ Fetches arguments for building a convolution down
+        """Fetches arguments for building a convolution down
 
         Arguments:
             conv_opt
@@ -141,8 +123,7 @@ class BackboneBasedModel(BaseModel):
         return args
 
     def _flatten_compact_options(self, opt):
-        """Converts from a dict of lists, to a list of dicts
-        """
+        """Converts from a dict of lists, to a list of dicts"""
         flattenedOpts = []
 
         for index in range(int(1e6)):

@@ -3,10 +3,8 @@ import torch.nn.functional as F
 import torch
 
 from torch_points3d.modules.MinkowskiEngine import *
-from torch_points3d.models.base_architectures import UnwrappedUnetBasedModel
 from torch_points3d.models.base_model import BaseModel
 from torch_points3d.datasets.segmentation import IGNORE_LABEL
-from torch_points3d.applications.minkowski import Minkowski
 
 
 log = logging.getLogger(__name__)
@@ -29,7 +27,7 @@ class Minkowski_Baseline_Model(BaseModel):
         self.labels = data.y.to(device)
 
     def forward(self, *args, **kwargs):
-        self.output = F.log_softmax(self.model(self.input).features, dim=-1)        
+        self.output = F.log_softmax(self.model(self.input).features, dim=-1)
         if self._weight_classes is not None:
             self._weight_classes = self._weight_classes.to(self.device)
         if self.labels is not None:

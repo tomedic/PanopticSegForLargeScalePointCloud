@@ -1,7 +1,7 @@
 import torch
 from torch.nn.parameter import Parameter
 
-from .kernel_utils import kernel_point_optimization_debug, load_kernels
+from .kernel_utils import load_kernels
 from .losses import fitting_loss, repulsion_loss, permissive_loss
 from .convolution_ops import *
 from torch_points3d.models.base_model import BaseInternalLossModule
@@ -45,7 +45,7 @@ class KPConvLayer(torch.nn.Module):
         aggregation_mode="sum",
         dimension=3,
         add_one=False,
-        **kwargs
+        **kwargs,
     ):
         super(KPConvLayer, self).__init__()
         self.kernel_radius = self._INFLUENCE_TO_RADIUS * point_influence
@@ -60,11 +60,16 @@ class KPConvLayer(torch.nn.Module):
 
         # Initial kernel extent for this layer
         K_points_numpy = load_kernels(
-            self.kernel_radius, n_kernel_points, num_kernels=1, dimension=dimension, fixed=fixed,
+            self.kernel_radius,
+            n_kernel_points,
+            num_kernels=1,
+            dimension=dimension,
+            fixed=fixed,
         )
 
         self.K_points = Parameter(
-            torch.from_numpy(K_points_numpy.reshape((n_kernel_points, dimension))).to(torch.float), requires_grad=False,
+            torch.from_numpy(K_points_numpy.reshape((n_kernel_points, dimension))).to(torch.float),
+            requires_grad=False,
         )
 
         weights = torch.empty([n_kernel_points, self.num_inputs, num_outputs], dtype=torch.float)
@@ -139,7 +144,7 @@ class KPConvDeformableLayer(BaseInternalLossModule):
         modulated=False,
         loss_mode="fitting",
         add_one=False,
-        **kwargs
+        **kwargs,
     ):
         super(KPConvDeformableLayer, self).__init__()
         self.kernel_radius = self._INFLUENCE_TO_RADIUS * point_influence
@@ -157,10 +162,15 @@ class KPConvDeformableLayer(BaseInternalLossModule):
 
         # Initial kernel extent for this layer
         K_points_numpy = load_kernels(
-            self.kernel_radius, n_kernel_points, num_kernels=1, dimension=dimension, fixed=fixed,
+            self.kernel_radius,
+            n_kernel_points,
+            num_kernels=1,
+            dimension=dimension,
+            fixed=fixed,
         )
         self.K_points = Parameter(
-            torch.from_numpy(K_points_numpy.reshape((n_kernel_points, dimension))).to(torch.float), requires_grad=False,
+            torch.from_numpy(K_points_numpy.reshape((n_kernel_points, dimension))).to(torch.float),
+            requires_grad=False,
         )
 
         # Create independant weight for the first convolution and a bias term as no batch normalization happen

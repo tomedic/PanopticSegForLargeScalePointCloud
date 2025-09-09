@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 import random
 from torch_points3d.core.data_transform.features import PCACompute, compute_planarity
 

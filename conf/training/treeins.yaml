@@ -31,7 +31,7 @@ checkpoint_dir: ""
 # parameters for Weights and Biases
 wandb:
   entity: "binbin" #TO ADAPT: change to your own wandb account name
-  project: test 
+  project: test
   log: True
   notes: "treeins"
   name: "treeins" #TO ADAPT: specify name of experiment that will be shown on wandb

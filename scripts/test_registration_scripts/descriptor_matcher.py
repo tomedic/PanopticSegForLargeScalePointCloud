@@ -6,7 +6,6 @@ import os
 import os.path as osp
 from omegaconf import OmegaConf
 import sys
-import matplotlib.pyplot as plt
 
 # Import building function for model and dataset
 DIR = os.path.dirname(os.path.realpath(__file__))
@@ -97,7 +96,10 @@ def pair_evaluation(path_descr_source, path_descr_target, gt_trans, list_tau, re
         feat_t = feat_t[data_target["keypoints"]]
 
     kp_source, kp_target = compute_matches(
-        feat_s, feat_t, data_source["pcd"][data_source["keypoints"]], data_target["pcd"][data_target["keypoints"]],
+        feat_s,
+        feat_t,
+        data_source["pcd"][data_source["keypoints"]],
+        data_target["pcd"][data_target["keypoints"]],
     )
 
     dist = compute_dists(kp_source, kp_target, gt_trans)
@@ -142,7 +144,6 @@ def compute_recall_scene(scene_name, list_pair, list_trans, list_tau1, list_tau2
 
 
 def evaluate(path_raw_fragment, path_results, list_tau1, list_tau2):
-
     """
     launch the evaluation procedure
     """

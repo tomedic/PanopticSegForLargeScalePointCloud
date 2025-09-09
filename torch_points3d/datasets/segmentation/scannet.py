@@ -1,18 +1,13 @@
 import os
 import os.path as osp
-import shutil
 import json
 import torch
-from glob import glob
-import sys
 import csv
 import logging
 import numpy as np
-from plyfile import PlyData, PlyElement
-from torch_geometric.data import Data, InMemoryDataset, download_url, extract_zip
-import torch_geometric.transforms as T
+from plyfile import PlyData
+from torch_geometric.data import Data, InMemoryDataset, download_url
 import multiprocessing
-import pandas as pd
 
 import tempfile
 import urllib
@@ -219,7 +214,7 @@ def download_label_map(out_dir):
 
 
 def represents_int(s):
-    """ if string s represents an int. """
+    """if string s represents an int."""
     try:
         int(s)
         return True
@@ -815,10 +810,10 @@ class ScannetDataset(BaseDataset):
 
         use_instance_labels: bool = dataset_opt.use_instance_labels
         use_instance_bboxes: bool = dataset_opt.use_instance_bboxes
-        donotcare_class_ids: [] = list(dataset_opt.get('donotcare_class_ids', []))
-        max_num_point: int = dataset_opt.get('max_num_point', None)
-        process_workers: int = dataset_opt.process_workers if hasattr(dataset_opt,'process_workers') else 0
-        is_test: bool = dataset_opt.get('is_test', False)
+        donotcare_class_ids: [] = list(dataset_opt.get("donotcare_class_ids", []))
+        max_num_point: int = dataset_opt.get("max_num_point", None)
+        process_workers: int = dataset_opt.process_workers if hasattr(dataset_opt, "process_workers") else 0
+        is_test: bool = dataset_opt.get("is_test", False)
 
         self.train_dataset = Scannet(
             self._data_path,

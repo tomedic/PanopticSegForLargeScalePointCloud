@@ -1,5 +1,3 @@
-
-
 class NormalizeFeature(object):
     """Normalize a feature. By default, features will be scaled between [0,1]. Should only be applied on a dataset-level.
 
@@ -23,4 +21,6 @@ class NormalizeFeature(object):
         return data
 
     def __repr__(self):
-        return "{}(feature_name={}, standardize={})".format(self.__class__.__name__, self._feature_name, self._standardize)
+        return "{}(feature_name={}, standardize={})".format(
+            self.__class__.__name__, self._feature_name, self._standardize
+        )

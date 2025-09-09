@@ -4,10 +4,11 @@ from omegaconf import OmegaConf
 from torch_points3d.trainer import Trainer
 import logging
 
+
 @hydra.main(config_path="conf", config_name="config")
 def main(cfg):
-    
-    numba_logger = logging.getLogger('numba')
+
+    numba_logger = logging.getLogger("numba")
     numba_logger.setLevel(logging.WARNING)
     OmegaConf.set_struct(cfg, False)  # This allows getattr and hasattr methods to function correctly
     if cfg.pretty_print:

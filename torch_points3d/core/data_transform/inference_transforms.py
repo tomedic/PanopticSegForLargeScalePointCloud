@@ -9,10 +9,10 @@ log = logging.getLogger(__name__)
 
 
 class ModelInference(object):
-    """ Base class transform for performing a point cloud inference using a pre_trained model
-    Subclass and implement the ``__call__`` method with your own forward. 
+    """Base class transform for performing a point cloud inference using a pre_trained model
+    Subclass and implement the ``__call__`` method with your own forward.
     See ``PointNetForward`` for an example implementation.
-    
+
     Parameters
     ----------
     checkpoint_dir: str
@@ -43,9 +43,9 @@ class ModelInference(object):
 
 
 class PointNetForward(ModelInference):
-    """ Transform for running a PointNet inference on a Data object. It assumes that the
+    """Transform for running a PointNet inference on a Data object. It assumes that the
     model has been trained for segmentation.
-    
+
     Parameters
     ----------
     checkpoint_dir: str

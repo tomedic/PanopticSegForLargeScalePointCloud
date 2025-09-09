@@ -2,8 +2,7 @@ import os
 import numpy as np
 import torch
 import logging
-from torch_geometric.data import InMemoryDataset
-from torch_points3d.datasets.segmentation.scannet import Scannet, NUM_CLASSES, IGNORE_LABEL
+from torch_points3d.datasets.segmentation.scannet import Scannet
 from torch_points3d.metrics.object_detection_tracker import ObjectDetectionTracker
 from torch_points3d.datasets.base_dataset import BaseDataset, save_used_properties
 from torch_points3d.utils.box_utils import box_corners_from_param
@@ -67,7 +66,7 @@ class ScannetObjectDetection(Scannet):
         return data
 
     def _set_extra_labels(self, data):
-        """ Adds extra labels for the instance and object segmentation tasks
+        """Adds extra labels for the instance and object segmentation tasks
         instance_box_corners: (MAX_NUM_OBJ, 8, 3) corners of the bounding boxes in this room
         center_label: (MAX_NUM_OBJ,3) for GT box center XYZ
         sem_cls_label: (MAX_NUM_OBJ,) semantic class index
@@ -170,11 +169,11 @@ class ScannetDataset(BaseDataset):
     def __init__(self, dataset_opt):
         super().__init__(dataset_opt)
         # update to OmegaConf 2.0
-        use_instance_labels: bool = dataset_opt.get('use_instance_labels')
-        use_instance_bboxes: bool = dataset_opt.get('use_instance_bboxes')
-        donotcare_class_ids: [] = list(dataset_opt.get('donotcare_class_ids', []))
-        max_num_point: int = dataset_opt.get('max_num_point', None)
-        is_test: bool = dataset_opt.get('is_test', False)
+        use_instance_labels: bool = dataset_opt.get("use_instance_labels")
+        use_instance_bboxes: bool = dataset_opt.get("use_instance_bboxes")
+        donotcare_class_ids: [] = list(dataset_opt.get("donotcare_class_ids", []))
+        max_num_point: int = dataset_opt.get("max_num_point", None)
+        is_test: bool = dataset_opt.get("is_test", False)
 
         self.train_dataset = ScannetObjectDetection(
             self._data_path,
@@ -208,8 +207,8 @@ class ScannetDataset(BaseDataset):
         return self.train_dataset.MEAN_SIZE_ARR.copy()
 
     def class2angle(self, pred_cls, residual, to_label_format=True):
-        """ Inverse function to angle2class.
-        As ScanNet only has axis-alined boxes so angles are always 0. """
+        """Inverse function to angle2class.
+        As ScanNet only has axis-alined boxes so angles are always 0."""
         return 0
 
     @property  # type: ignore
@@ -218,7 +217,7 @@ class ScannetDataset(BaseDataset):
         return 18
 
     def class2size(self, pred_cls, residual):
-        """ Inverse function to size2class """
+        """Inverse function to size2class"""
         if torch.is_tensor(residual):
             mean = torch.tensor(self.mean_size_arr[pred_cls, :]).to(residual.device)
         else:

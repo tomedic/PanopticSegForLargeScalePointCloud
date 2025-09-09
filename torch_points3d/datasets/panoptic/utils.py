@@ -1,13 +1,14 @@
 import numpy as np
 import torch
 
+
 def set_extra_labels(data, instance_classes, num_max_objects):
-    """ Adds extra labels for the instance and object segmentation tasks
+    """Adds extra labels for the instance and object segmentation tasks
     - num_instances: number of instances
     - center_label: [64, 3] on centre per instance
     - instance_labels: [num_points]
     - vote_label: [num_points, 3] displacmenet between each point and the center.
-    - instance_mask: [num_points] boolean mask 
+    - instance_mask: [num_points] boolean mask
     """
     # Initaliase variables
     num_points = data.pos.shape[0]
@@ -36,8 +37,7 @@ def set_extra_labels(data, instance_classes, num_max_objects):
 
     num_instances = len(centers)
     if num_instances > num_max_objects:
-        raise ValueError(
-            "We have more objects than expected. Please increase the NUM_MAX_OBJECTS variable.")
+        raise ValueError("We have more objects than expected. Please increase the NUM_MAX_OBJECTS variable.")
     data.center_label = torch.zeros((num_max_objects, 3))
     if num_instances:
         data.center_label[:num_instances, :] = torch.stack(centers)

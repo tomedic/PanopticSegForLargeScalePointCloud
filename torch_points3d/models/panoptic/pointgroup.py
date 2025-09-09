@@ -9,7 +9,7 @@ import numpy as np
 from torch_points3d.datasets.segmentation import IGNORE_LABEL
 from torch_points3d.models.base_model import BaseModel
 from torch_points3d.applications.minkowski import Minkowski
-from torch_points3d.core.common_modules import Seq, MLP, FastBatchNorm1d
+from torch_points3d.core.common_modules import Seq, MLP
 from torch_points3d.core.losses import offset_loss, instance_iou_loss, mask_loss, instance_ious
 from torch_points3d.core.data_transform import GridSampling3D
 from .structures import PanopticLabels, PanopticResults
@@ -36,7 +36,7 @@ class PointGroup(BaseModel):
 
         self._scorer_type = option.get("scorer_type", None)
         # cluster_voxel_size = option.get("cluster_voxel_size", 0.05)
-        #TODO look at how to do back projection of GridSampling3D
+        # TODO look at how to do back projection of GridSampling3D
         cluster_voxel_size = False
         if cluster_voxel_size:
             self._voxelizer = GridSampling3D(cluster_voxel_size, quantize_coords=True, mode="mean", return_inverse=True)
@@ -86,7 +86,7 @@ class PointGroup(BaseModel):
             return self.opt.block_merge_th
         else:
             return 0.01
-    
+
     def set_input(self, data, device):
         self.raw_pos = data.pos.to(device)
         self.input = data
@@ -95,25 +95,27 @@ class PointGroup(BaseModel):
 
     def forward(self, epoch=-1, **kwargs):
         # Backbone
-        backbone_features = self.Backbone(self.input).x # [N, 16]
+        backbone_features = self.Backbone(self.input).x  # [N, 16]
 
         # Semantic and offset heads
-        semantic_logits = self.Semantic(backbone_features) # [N, 9]
-        offset_logits = self.Offset(backbone_features) # [N, 3]
+        semantic_logits = self.Semantic(backbone_features)  # [N, 9]
+        offset_logits = self.Offset(backbone_features)  # [N, 3]
 
         # Grouping and scoring
         cluster_scores = None
         mask_scores = None
-        all_clusters = None # list of clusters (point idx)
-        cluster_type = None # 0 for cluster, 1 for vote
-        if self.use_score_net: # and epoch > self.opt.prepare_epoch:
-            if epoch > self.opt.prepare_epoch:   # Active by default epoch > -1: #
+        all_clusters = None  # list of clusters (point idx)
+        cluster_type = None  # 0 for cluster, 1 for vote
+        if self.use_score_net:  # and epoch > self.opt.prepare_epoch:
+            if epoch > self.opt.prepare_epoch:  # Active by default epoch > -1: #
                 if self.opt.cluster_type == 1:
                     all_clusters, cluster_type = self._cluster(semantic_logits, offset_logits)
                 elif self.opt.cluster_type == 2:
                     all_clusters, cluster_type = self._cluster2(semantic_logits, offset_logits)
                 if len(all_clusters):
-                    cluster_scores, mask_scores = self._compute_score(epoch, all_clusters, backbone_features, semantic_logits)
+                    cluster_scores, mask_scores = self._compute_score(
+                        epoch, all_clusters, backbone_features, semantic_logits
+                    )
         else:
             with torch.no_grad():
                 if epoch % 1 == 0:
@@ -121,7 +123,7 @@ class PointGroup(BaseModel):
                         all_clusters, cluster_type = self._cluster(semantic_logits, offset_logits)
                     elif self.opt.cluster_type == 2:
                         all_clusters, cluster_type = self._cluster2(semantic_logits, offset_logits)
-                
+
         self.output = PanopticResults(
             semantic_logits=semantic_logits,
             offset_logits=offset_logits,
@@ -132,12 +134,12 @@ class PointGroup(BaseModel):
         )
 
         # Sets visual data for debugging
-        #with torch.no_grad():
-            #self._dump_visuals(epoch)
+        # with torch.no_grad():
+        # self._dump_visuals(epoch)
 
     def _cluster(self, semantic_logits, offset_logits):
-        """ Compute clusters from positions and votes """
-        predicted_labels = torch.max(semantic_logits, 1)[1] # [N]
+        """Compute clusters from positions and votes"""
+        predicted_labels = torch.max(semantic_logits, 1)[1]  # [N]
         clusters_votes = region_grow(
             self.raw_pos + offset_logits,
             predicted_labels,
@@ -145,27 +147,27 @@ class PointGroup(BaseModel):
             ignore_labels=self._stuff_classes.to(self.device),
             radius=self.opt.cluster_radius_search,
             nsample=200,
-            min_cluster_size=10
+            min_cluster_size=10,
         )
-        #clusters_votes = []
+        # clusters_votes = []
 
         all_clusters = clusters_votes
         all_clusters = [c.to(self.device) for c in all_clusters]
         cluster_type = torch.zeros(len(all_clusters), dtype=torch.uint8).to(self.device)
         return all_clusters, cluster_type
-    
+
     def _cluster2(self, semantic_logits, offset_logits):
-        """ Compute clusters from positions and votes """
-        predicted_labels = torch.max(semantic_logits, 1)[1] # [N]
+        """Compute clusters from positions and votes"""
+        predicted_labels = torch.max(semantic_logits, 1)[1]  # [N]
         clusters_pos = region_grow(
             self.raw_pos,
             predicted_labels,
             self.input.batch.to(self.device),
             ignore_labels=self._stuff_classes.to(self.device),
             radius=self.opt.cluster_radius_search,
-            min_cluster_size=10
+            min_cluster_size=10,
         )
-        #clusters_pos = []
+        # clusters_pos = []
         clusters_votes = region_grow(
             self.raw_pos + offset_logits,
             predicted_labels,
@@ -173,9 +175,9 @@ class PointGroup(BaseModel):
             ignore_labels=self._stuff_classes.to(self.device),
             radius=self.opt.cluster_radius_search,
             nsample=200,
-            min_cluster_size=10
+            min_cluster_size=10,
         )
-        #clusters_votes = []
+        # clusters_votes = []
 
         all_clusters = clusters_pos + clusters_votes
         all_clusters = [c.to(self.device) for c in all_clusters]
@@ -184,15 +186,15 @@ class PointGroup(BaseModel):
             cluster_type[len(clusters_pos) :] = 1
         return all_clusters, cluster_type
 
-    #Clustering based on shifted coordinates U original coordinates
+    # Clustering based on shifted coordinates U original coordinates
     def _cluster3(self, semantic_logits, offset_logits):
-        """ Compute clusters"""
-        #remove stuff points
+        """Compute clusters"""
+        # remove stuff points
         N = semantic_logits.cpu().detach().numpy().shape[0]
-        predicted_labels = torch.max(semantic_logits, 1)[1].cpu().detach().numpy() # [N]
+        predicted_labels = torch.max(semantic_logits, 1)[1].cpu().detach().numpy()  # [N]
         ind = np.arange(0, N)
         unique_predicted_labels = np.unique(predicted_labels)
-        ignore_labels=self._stuff_classes.cpu().detach().numpy()
+        ignore_labels = self._stuff_classes.cpu().detach().numpy()
         label_mask = torch.ones(predicted_labels.size, dtype=torch.bool).cpu().detach().numpy()
         for l in unique_predicted_labels:
             if l in ignore_labels:
@@ -202,14 +204,18 @@ class PointGroup(BaseModel):
         local_ind = ind[label_mask]
         label_batch = self.input.batch[label_mask].cpu().detach().numpy()
         unique_in_batch = np.unique(label_batch)
-        
-        #Clustering based on original coordinates
+
+        # Clustering based on original coordinates
         xyz_u = self.raw_pos[label_mask].cpu().detach().numpy()
-        clusters_xyz, cluster_type_xyz = hdbscan_cluster.cluster_single(xyz_u, unique_in_batch, label_batch, local_ind, 0)
-        #Clustering based on shifted coordinates
+        clusters_xyz, cluster_type_xyz = hdbscan_cluster.cluster_single(
+            xyz_u, unique_in_batch, label_batch, local_ind, 0
+        )
+        # Clustering based on shifted coordinates
         shifted_cor = self.raw_pos + offset_logits
         shift_u = shifted_cor[label_mask].cpu().detach().numpy()
-        clusters_embeds, cluster_type_embeds = hdbscan_cluster.cluster_single(shift_u, unique_in_batch, label_batch, local_ind, 1)
+        clusters_embeds, cluster_type_embeds = hdbscan_cluster.cluster_single(
+            shift_u, unique_in_batch, label_batch, local_ind, 1
+        )
 
         all_clusters = []
         cluster_type = []
@@ -222,20 +228,24 @@ class PointGroup(BaseModel):
         return all_clusters, cluster_type
 
     def _compute_score(self, epoch, all_clusters, backbone_features, semantic_logits):
-        """ Score the clusters """
+        """Score the clusters"""
         mask_scores = None
-        if self._scorer_type: # unet
+        if self._scorer_type:  # unet
             # Assemble batches
-            x = [] # backbone features
-            coords = [] # input coords
-            batch = [] 
+            x = []  # backbone features
+            coords = []  # input coords
+            batch = []
             pos = []
             for i, cluster in enumerate(all_clusters):
                 x.append(backbone_features[cluster])
                 coords.append(self.input.coords[cluster])
                 batch.append(i * torch.ones(cluster.shape[0]))
                 pos.append(self.input.pos[cluster])
-            batch_cluster = Data(x=torch.cat(x), coords=torch.cat(coords), batch=torch.cat(batch),)
+            batch_cluster = Data(
+                x=torch.cat(x),
+                coords=torch.cat(coords),
+                batch=torch.cat(batch),
+            )
 
             # Voxelise if required
             if self._voxelizer:
@@ -256,20 +266,20 @@ class PointGroup(BaseModel):
             else:
                 score_backbone_out = self.ScorerUnet(batch_cluster)
                 if self.mask_supervise:
-                    mask_scores = self.MaskScore(score_backbone_out.x) # [point num of all proposals (voxelized), 1]
-                    
+                    mask_scores = self.MaskScore(score_backbone_out.x)  # [point num of all proposals (voxelized), 1]
+
                     if self.use_mask_filter_score_feature and epoch > self.use_mask_filter_score_feature_start_epoch:
                         mask_index_select = torch.ones_like(mask_scores)
-                        mask_index_select[torch.sigmoid(mask_scores) < self.mask_filter_score_feature_thre] = 0.
+                        mask_index_select[torch.sigmoid(mask_scores) < self.mask_filter_score_feature_thre] = 0.0
                         score_backbone_out.x = score_backbone_out.x * mask_index_select
                     # mask_scores = mask_scores[batch_cluster.inverse_indices] # [point num of all proposals, 1]
-                
+
                 cluster_feats = scatter(
                     score_backbone_out.x, batch_cluster.batch.long().to(self.device), dim=0, reduce="max"
-                ) # [num_cluster, 16]
+                )  # [num_cluster, 16]
 
-            cluster_scores = self.ScorerHead(cluster_feats).squeeze(-1) # [num_cluster, 1]
-            
+            cluster_scores = self.ScorerHead(cluster_feats).squeeze(-1)  # [num_cluster, 1]
+
         else:
             # Use semantic certainty as cluster confidence
             with torch.no_grad():
@@ -307,7 +317,7 @@ class PointGroup(BaseModel):
             mask_scores_sigmoid = torch.sigmoid(self.output.mask_scores).squeeze()
         else:
             mask_scores_sigmoid = None
-            
+
         # Calculate iou between each proposal and each GT instance
         if epoch > self.opt.prepare_epoch and self.use_score_net:
             if self.cal_iou_based_on_mask and (epoch > self.cal_iou_based_on_mask_start_epoch):
@@ -317,7 +327,7 @@ class PointGroup(BaseModel):
                     self.input.instance_labels.to(self.device),
                     self.input.batch.to(self.device),
                     mask_scores_sigmoid,
-                    cal_iou_based_on_mask=True
+                    cal_iou_based_on_mask=True,
                 )
             else:
                 ious = instance_ious(
@@ -326,7 +336,7 @@ class PointGroup(BaseModel):
                     self.input.instance_labels.to(self.device),
                     self.input.batch.to(self.device),
                     mask_scores_sigmoid,
-                    cal_iou_based_on_mask=False
+                    cal_iou_based_on_mask=False,
                 )
         # Score loss
         if self.output.cluster_scores is not None and self._scorer_type:

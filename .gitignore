@@ -1,0 +1,14 @@
+# Local folders
+.idea/
+data/
+results/
+temp/
+outputs/
+resources/
+__pycache__/
+
+# Datasets and large files
+*.ply
+*.e57
+*.jpeg
+*.jpg

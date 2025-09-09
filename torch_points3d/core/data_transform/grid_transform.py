@@ -1,6 +1,5 @@
 from typing import *
 import numpy as np
-import numpy
 import random
 import scipy
 import re
@@ -10,9 +9,9 @@ import torch.nn.functional as F
 from torch_scatter import scatter_mean, scatter_add
 from torch_geometric.nn.pool.consecutive import consecutive_cluster
 from torch_geometric.nn import voxel_grid
-from torch_geometric.data import Data
 from torch_cluster import grid_cluster
-#import mpu.ml
+
+# import mpu.ml
 
 log = logging.getLogger(__name__)
 
@@ -30,8 +29,9 @@ def shuffle_data(data):
             data[key] = item[shuffle_idx]
     return data
 
+
 def group_data(data, cluster=None, unique_pos_indices=None, mode="last", skip_keys=[]):
-    """ Group data based on indices in cluster.
+    """Group data based on indices in cluster.
     The option ``mode`` controls how data gets agregated within each cluster.
     Parameters
     ----------
@@ -70,7 +70,7 @@ def group_data(data, cluster=None, unique_pos_indices=None, mode="last", skip_ke
                     item = item.int()
                 if key in _INTEGER_LABEL_KEYS:
                     item_min = item.min()
-                    item = F.one_hot((item - item_min).to(torch.int64)) #F.one_hot(item - item_min)
+                    item = F.one_hot((item - item_min).to(torch.int64))  # F.one_hot(item - item_min)
                     item = scatter_add(item, cluster, dim=0)
                     data[key] = item.argmax(dim=-1) + item_min
                 else:
@@ -79,8 +79,9 @@ def group_data(data, cluster=None, unique_pos_indices=None, mode="last", skip_ke
                     data[key] = data[key].bool()
     return data
 
+
 def group_data2(data, cluster=None, unique_pos_indices=None, mode="last", skip_keys=[]):
-    """ Group data based on indices in cluster.
+    """Group data based on indices in cluster.
     The option ``mode`` controls how data gets agregated within each cluster.
 
     Parameters
@@ -120,25 +121,23 @@ def group_data2(data, cluster=None, unique_pos_indices=None, mode="last", skip_k
                     item = item.int()
                 if key in _INTEGER_LABEL_KEYS:
                     item_min = item.min()
-                    #print(key)
-                    #print(len(item))
-                    #print(item.size())
-                    
-                    
+                    # print(key)
+                    # print(len(item))
+                    # print(item.size())
+
                     torch.set_printoptions(profile="full")
                     print(item[0])
                     print(cluster[0])
                     item_0 = item - item_min
-                    #item = mpu.ml.indices2one_hot(item, nb_classes=item.max()+1)
-                    #item = torch.zeros([len(item), item.max()+1], dtype=torch.int32).scatter_(1, item.unsqueeze(1).to(torch.int64), 1)
-                    #item = F.one_hot((item - item_min).to(torch.int64))
-                    m_zeros = torch.zeros([len(item_0), item_0.max()+1], dtype=torch.int32)
+                    # item = mpu.ml.indices2one_hot(item, nb_classes=item.max()+1)
+                    # item = torch.zeros([len(item), item.max()+1], dtype=torch.int32).scatter_(1, item.unsqueeze(1).to(torch.int64), 1)
+                    # item = F.one_hot((item - item_min).to(torch.int64))
+                    m_zeros = torch.zeros([len(item_0), item_0.max() + 1], dtype=torch.int32)
                     m_zeros[np.arange(len(item_0)), item_0.to(torch.int64)] = 1
-                    #item = item.to(torch.int32)
+                    # item = item.to(torch.int32)
                     item = m_zeros.clone().detach()
-                    
-                    
-                    #print(torch.sum(item))
+
+                    # print(torch.sum(item))
                     item = scatter_add(item, cluster, dim=0)
                     data[key] = item.argmax(dim=-1) + item_min
                 else:
@@ -149,7 +148,7 @@ def group_data2(data, cluster=None, unique_pos_indices=None, mode="last", skip_k
 
 
 class GridSampling3D:
-    """ Clusters points into voxels with size :attr:`size`.
+    """Clusters points into voxels with size :attr:`size`.
     Parameters
     ----------
     size: float
@@ -188,7 +187,7 @@ class GridSampling3D:
         else:
             cluster = voxel_grid(coords, data.batch, 1)
         cluster, unique_pos_indices = consecutive_cluster(cluster)
-        self._mode="last"
+        self._mode = "last"
         data = group_data(data, cluster, unique_pos_indices, mode=self._mode)
         if self._quantize_coords:
             data.coords = coords[unique_pos_indices].int()
@@ -208,9 +207,13 @@ class GridSampling3D:
         return "{}(grid_size={}, quantize_coords={}, mode={})".format(
             self.__class__.__name__, self._grid_size, self._quantize_coords, self._mode
         )
+
+
 from sklearn.decomposition import PCA
+
+
 class GridSampling3D_PCA:
-    """ Clusters points into voxels with size :attr:`size`.
+    """Clusters points into voxels with size :attr:`size`.
     Parameters
     ----------
     size: float
@@ -243,32 +246,32 @@ class GridSampling3D_PCA:
         if self._mode == "last":
             data = shuffle_data(data)
 
-        #PCA to find the minimum bounding box of the whole point cloud
+        # PCA to find the minimum bounding box of the whole point cloud
         pca = PCA(n_components=2)
-        pca.fit(data.pos.numpy()[:,0:-1])
+        pca.fit(data.pos.numpy()[:, 0:-1])
         data_reduced = data.pos.numpy().copy()
-        data_reduced[:,0:-1] = np.dot(data.pos.numpy()[:,0:-1] - pca.mean_, pca.components_.T) # transform
-        
+        data_reduced[:, 0:-1] = np.dot(data.pos.numpy()[:, 0:-1] - pca.mean_, pca.components_.T)  # transform
+
         coords = np.round((data_reduced) / self._grid_size)
-        #coords = np.dot(coords, pca.components_) + pca.mean_ # inverse_transform
-        coords[:,-1] = 0
-        coords[:,0:-1] = np.dot(coords[:,0:-1], pca.components_) + pca.mean_ # inverse_transform
+        # coords = np.dot(coords, pca.components_) + pca.mean_ # inverse_transform
+        coords[:, -1] = 0
+        coords[:, 0:-1] = np.dot(coords[:, 0:-1], pca.components_) + pca.mean_  # inverse_transform
         coords = torch.tensor(coords)
-        
+
         if "batch" not in data:
-            #cluster = grid_cluster(coords, torch.tensor([1, 1, 1]), torch.min(coords,0)[0], torch.max(coords,0)[0])
-            cluster = grid_cluster(coords[:,0:-1], torch.tensor([1, 1]))
+            # cluster = grid_cluster(coords, torch.tensor([1, 1, 1]), torch.min(coords,0)[0], torch.max(coords,0)[0])
+            cluster = grid_cluster(coords[:, 0:-1], torch.tensor([1, 1]))
         else:
             cluster = voxel_grid(coords, data.batch, 1)
         cluster, unique_pos_indices = consecutive_cluster(cluster)
-        self._mode="last"
+        self._mode = "last"
         data = group_data(data, cluster, unique_pos_indices, mode=self._mode)
         if self._quantize_coords:
             data.coords = coords[unique_pos_indices].int()
         if self.return_inverse:
             data.inverse_indices = cluster
         data.grid_size = torch.tensor([self._grid_size])
-        
+
         return data
 
     def __call__(self, data):
@@ -283,8 +286,9 @@ class GridSampling3D_PCA:
             self.__class__.__name__, self._grid_size, self._quantize_coords, self._mode
         )
 
+
 class SaveOriginalPosId:
-    """ Transform that adds the index of the point to the data object
+    """Transform that adds the index of the point to the data object
     This allows us to track this point from the output back to the input data object
     """
 
@@ -306,9 +310,10 @@ class SaveOriginalPosId:
 
     def __repr__(self):
         return self.__class__.__name__
-    
+
+
 class SaveLocalOriginalPosId:
-    """ Transform that adds the index of the point to the data object
+    """Transform that adds the index of the point to the data object
     This allows us to track this point from the output back to the input data object
     """
 
@@ -333,7 +338,7 @@ class SaveLocalOriginalPosId:
 
 
 class ElasticDistortion:
-    """Apply elastic distortion on sparse coordinate space. First projects the position onto a 
+    """Apply elastic distortion on sparse coordinate space. First projects the position onto a
     voxel grid and then apply the distortion to the voxel grid.
 
     Parameters
@@ -349,7 +354,10 @@ class ElasticDistortion:
     """
 
     def __init__(
-        self, apply_distorsion: bool = True, granularity: List = [0.2, 0.8], magnitude=[0.4, 1.6],
+        self,
+        apply_distorsion: bool = True,
+        granularity: List = [0.2, 0.8],
+        magnitude=[0.4, 1.6],
     ):
         assert len(magnitude) == len(granularity)
         self._apply_distorsion = apply_distorsion
@@ -388,10 +396,17 @@ class ElasticDistortion:
         if self._apply_distorsion:
             if random.random() < 0.95:
                 for i in range(len(self._granularity)):
-                    data.pos = ElasticDistortion.elastic_distortion(data.pos, self._granularity[i], self._magnitude[i],)
+                    data.pos = ElasticDistortion.elastic_distortion(
+                        data.pos,
+                        self._granularity[i],
+                        self._magnitude[i],
+                    )
         return data
 
     def __repr__(self):
         return "{}(apply_distorsion={}, granularity={}, magnitude={})".format(
-            self.__class__.__name__, self._apply_distorsion, self._granularity, self._magnitude,
+            self.__class__.__name__,
+            self._apply_distorsion,
+            self._granularity,
+            self._magnitude,
         )

@@ -2,20 +2,14 @@ import numpy as np
 import os
 import os.path as osp
 import torch
-from torch_geometric.data import Data
 
 from torch_points3d.datasets.registration.base3dmatch import Base3DMatch
 from torch_points3d.datasets.registration.utils import PatchExtractor
-from torch_points3d.datasets.registration.utils import tracked_matches
 from torch_points3d.datasets.registration.pair import Pair, MultiScalePair
-from torch_points3d.metrics.registration_tracker import PatchRegistrationTracker
-from torch_points3d.metrics.registration_tracker import FragmentRegistrationTracker
 
 from torch_points3d.datasets.registration.base_siamese_dataset import BaseSiameseDataset
 from torch_points3d.datasets.registration.base_siamese_dataset import GeneralFragment
-from torch_points3d.datasets.registration.utils import compute_overlap_and_matches
 from torch_points3d.datasets.registration.test3dmatch import TestPair3DMatch
-
 
 
 class Patch3DMatch(Base3DMatch):
@@ -153,7 +147,7 @@ class Patch3DMatch(Base3DMatch):
             data_source = self.transform(data_source)
             data_target = self.transform(data_target)
 
-        if(hasattr(data_source, "multiscale")):
+        if hasattr(data_source, "multiscale"):
             batch = MultiScalePair.make_pair(data_source, data_target)
         else:
             batch = Pair.make_pair(data_source, data_target)
@@ -177,84 +171,84 @@ class Patch3DMatch(Base3DMatch):
 
 class Fragment3DMatch(Base3DMatch, GeneralFragment):
     r"""
-        Fragment extracted from :the Princeton 3DMatch dataset\n
-        `"3DMatch: Learning Local Geometric Descriptors from RGB-D Reconstructions"
-        <https://arxiv.org/pdf/1603.08182.pdf>`_
-        paper, containing rgbd frames of the following dataset:
-        `" SUN3D: A Database of Big Spaces Reconstructed using SfM and Object Labels
-        "<http://sun3d.cs.princeton.edu/>`
-        `"Scene Coordinate Regression Forests for Camera Relocalization in RGB-D Images
-        "<https://www.microsoft.com/en-us/research/publication/scene-coordinate-regression-forests-for-camera-relocalization-in-rgb-d-images/>`
-        `"Unsupervised Feature Learning for 3D Scene Labeling
-        "<http://rgbd-dataset.cs.washington.edu/dataset/rgbd-scenes-v2/>`
-        `"BundleFusion: Real-time Globally Consistent 3D Reconstruction using Online
-        Surface Re-integration
-        "<http://graphics.stanford.edu/projects/bundlefusion/>`
-        `"Learning to Navigate the Energy Landscape
-        "<http://graphics.stanford.edu/projects/reloc/>`
+    Fragment extracted from :the Princeton 3DMatch dataset\n
+    `"3DMatch: Learning Local Geometric Descriptors from RGB-D Reconstructions"
+    <https://arxiv.org/pdf/1603.08182.pdf>`_
+    paper, containing rgbd frames of the following dataset:
+    `" SUN3D: A Database of Big Spaces Reconstructed using SfM and Object Labels
+    "<http://sun3d.cs.princeton.edu/>`
+    `"Scene Coordinate Regression Forests for Camera Relocalization in RGB-D Images
+    "<https://www.microsoft.com/en-us/research/publication/scene-coordinate-regression-forests-for-camera-relocalization-in-rgb-d-images/>`
+    `"Unsupervised Feature Learning for 3D Scene Labeling
+    "<http://rgbd-dataset.cs.washington.edu/dataset/rgbd-scenes-v2/>`
+    `"BundleFusion: Real-time Globally Consistent 3D Reconstruction using Online
+    Surface Re-integration
+    "<http://graphics.stanford.edu/projects/bundlefusion/>`
+    `"Learning to Navigate the Energy Landscape
+    "<http://graphics.stanford.edu/projects/reloc/>`
 
-        Args:
+    Args:
 
-            root (string): Root directory where the dataset should be saved
+        root (string): Root directory where the dataset should be saved
 
-            num_frame_per_fragment (int, optional): indicate the number of frames
-                we use to build fragments. If it is equal to 0, then we don't
-                build fragments and use the raw frames.
+        num_frame_per_fragment (int, optional): indicate the number of frames
+            we use to build fragments. If it is equal to 0, then we don't
+            build fragments and use the raw frames.
 
-            mode (string, optional): If :obj:`True`, loads the training dataset,
-            otherwise the test dataset. (default: :obj:`True`)
+        mode (string, optional): If :obj:`True`, loads the training dataset,
+        otherwise the test dataset. (default: :obj:`True`)
 
-            min_overlap_ratio(float, optional): the minimum overlap we should have to match two fragments (overlap is the number of points in a fragment that matches in an other fragment divided by the number of points)
-            max_overlap_ratio(float, optional): the maximum overlap we should have to match two fragments
-            max_dist_overlap(float, optional): minimum distance to consider that a point match with an other.
-            tsdf_voxel_size(float, optional): the size of the tsdf voxel grid to perform fine RGBD fusion to create fine fragments
-            depth_thresh: threshold to remove depth pixel that are two far.
+        min_overlap_ratio(float, optional): the minimum overlap we should have to match two fragments (overlap is the number of points in a fragment that matches in an other fragment divided by the number of points)
+        max_overlap_ratio(float, optional): the maximum overlap we should have to match two fragments
+        max_dist_overlap(float, optional): minimum distance to consider that a point match with an other.
+        tsdf_voxel_size(float, optional): the size of the tsdf voxel grid to perform fine RGBD fusion to create fine fragments
+        depth_thresh: threshold to remove depth pixel that are two far.
 
-            is_fine: fine mode for the fragment fusion
+        is_fine: fine mode for the fragment fusion
 
 
-            transform (callable, optional): A function/transform that takes in
-                an :obj:`torch_geometric.data.Data` object and returns a
-                transformed version. The data object will be transformed before
-                every access. (default: :obj:`None`)
+        transform (callable, optional): A function/transform that takes in
+            an :obj:`torch_geometric.data.Data` object and returns a
+            transformed version. The data object will be transformed before
+            every access. (default: :obj:`None`)
 
-            pre_transform (callable, optional): A function/transform that takes in
-                an :obj:`torch_geometric.data.Data` object and returns a
-                transformed version. The data object will be transformed before
-                being saved to disk. (default: :obj:`None`)
-            pre_filter (callable, optional): A function that takes in an
-                :obj:`torch_geometric.data.Data` object and returns a boolean
-                value, indicating whether the data object should be included in the
-                final dataset. (default: :obj:`None`)
-            num_random_pt: number of point we select when we test
-        """
+        pre_transform (callable, optional): A function/transform that takes in
+            an :obj:`torch_geometric.data.Data` object and returns a
+            transformed version. The data object will be transformed before
+            being saved to disk. (default: :obj:`None`)
+        pre_filter (callable, optional): A function that takes in an
+            :obj:`torch_geometric.data.Data` object and returns a boolean
+            value, indicating whether the data object should be included in the
+            final dataset. (default: :obj:`None`)
+        num_random_pt: number of point we select when we test
+    """
 
     def __init__(
-            self,
-            root,
-            num_frame_per_fragment=50,
-            mode="train_small",
-            min_overlap_ratio=0.3,
-            max_overlap_ratio=1.0,
-            max_dist_overlap=0.01,
-            tsdf_voxel_size=0.02,
-            limit_size=700,
-            depth_thresh=6,
-            is_fine=True,
-            transform=None,
-            pre_transform=None,
-            pre_transform_fragment=None,
-            pre_filter=None,
-            verbose=False,
-            debug=False,
-            is_online_matching=False,
-            num_pos_pairs=1024,
-            self_supervised=False,
-            min_size_block=0.3,
-            max_size_block=2,
-            ss_transform=None,
-            min_points=500,
-            use_fps=False
+        self,
+        root,
+        num_frame_per_fragment=50,
+        mode="train_small",
+        min_overlap_ratio=0.3,
+        max_overlap_ratio=1.0,
+        max_dist_overlap=0.01,
+        tsdf_voxel_size=0.02,
+        limit_size=700,
+        depth_thresh=6,
+        is_fine=True,
+        transform=None,
+        pre_transform=None,
+        pre_transform_fragment=None,
+        pre_filter=None,
+        verbose=False,
+        debug=False,
+        is_online_matching=False,
+        num_pos_pairs=1024,
+        self_supervised=False,
+        min_size_block=0.3,
+        max_size_block=2,
+        ss_transform=None,
+        min_points=500,
+        use_fps=False,
     ):
         self.is_patch = False
         Base3DMatch.__init__(
@@ -331,7 +325,7 @@ class General3DMatchDataset(BaseSiameseDataset):
                 transform=train_transform,
                 num_random_pt=dataset_opt.num_random_pt,
                 is_offline=dataset_opt.is_offline,
-                pre_filter=pre_filter
+                pre_filter=pre_filter,
             )
 
             self.val_dataset = Patch3DMatch(
@@ -371,7 +365,7 @@ class General3DMatchDataset(BaseSiameseDataset):
                 max_size_block=dataset_opt.max_size_block,
                 ss_transform=ss_transform,
                 min_points=dataset_opt.min_points,
-                use_fps=dataset_opt.use_fps
+                use_fps=dataset_opt.use_fps,
             )
 
             self.val_dataset = Fragment3DMatch(
@@ -395,5 +389,5 @@ class General3DMatchDataset(BaseSiameseDataset):
                 transform=test_transform,
                 num_pos_pairs=50,
                 max_dist_overlap=dataset_opt.max_dist_overlap,
-                self_supervised=False
+                self_supervised=False,
             )

@@ -1,19 +1,18 @@
-import torch
 import numpy as np
 from torch.utils.data import Sampler
+
 
 class BalancedRandomSampler(Sampler):
     r"""This sampler is responsible for creating balanced batch based on the class distribution.
     It is implementing a replacement=True strategy for indices selection
     """
+
     def __init__(self, labels, replacement=True):
 
         self.num_samples = len(labels)
 
         self.idx_classes, self.counts = np.unique(labels, return_counts=True)
-        self.indices = {
-           idx: np.argwhere(labels == idx).flatten() for idx in self.idx_classes
-        }
+        self.indices = {idx: np.argwhere(labels == idx).flatten() for idx in self.idx_classes}
 
     def __iter__(self):
         indices = []
@@ -28,4 +27,3 @@ class BalancedRandomSampler(Sampler):
 
     def __repr__(self):
         return "{}(num_samples={})".format(self.__class__.__name__, self.num_samples)
-

@@ -15,27 +15,24 @@ Seeding is performed using a binning technique for scalability.
 #           Martino Sorbaro <martino.sorbaro@ed.ac.uk>
 
 import numpy as np
-import warnings
 import math
 
-from collections import defaultdict
-#from sklearn.externals import six
+
+# from sklearn.externals import six
 from sklearn.utils.validation import check_is_fitted
 from sklearn.utils import check_random_state, gen_batches, check_array
 from sklearn.base import BaseEstimator, ClusterMixin
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import pairwise_distances_argmin
-from joblib import Parallel
-from joblib import delayed
 
 from torch_points3d.utils.batch_seed_euc import meanshift_torch
 from random import shuffle
 
 
-#seeds number intital
+# seeds number intital
 SEED_NUM = 128
-L=8
-H=32
+L = 8
+H = 32
 
 
 def estimate_bandwidth(X, quantile=0.3, n_samples=None, random_state=0, n_jobs=None):
@@ -75,11 +72,10 @@ def estimate_bandwidth(X, quantile=0.3, n_samples=None, random_state=0, n_jobs=N
     n_neighbors = int(X.shape[0] * quantile)
     if n_neighbors < 1:  # cannot fit NearestNeighbors with n_neighbors = 0
         n_neighbors = 1
-    nbrs = NearestNeighbors(n_neighbors=n_neighbors,
-                            n_jobs=n_jobs)
+    nbrs = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=n_jobs)
     nbrs.fit(X)
 
-    bandwidth = 0.
+    bandwidth = 0.0
     for batch in gen_batches(len(X), 500):
         d, _ = nbrs.kneighbors(X[batch, :], return_distance=True)
         bandwidth += np.max(d, axis=1).sum()
@@ -89,40 +85,41 @@ def estimate_bandwidth(X, quantile=0.3, n_samples=None, random_state=0, n_jobs=N
 
 def gpu_seed_generator(codes):
 
-     seed_indizes = list(range(codes.shape[0]))
-     shuffle(seed_indizes)
-     seed_indizes = seed_indizes[:SEED_NUM]
-     seeds = codes[seed_indizes]
-     
-     return seeds
+    seed_indizes = list(range(codes.shape[0]))
+    shuffle(seed_indizes)
+    seed_indizes = seed_indizes[:SEED_NUM]
+    seeds = codes[seed_indizes]
+
+    return seeds
+
 
 def gpu_seed_adjust(codes):
     global SEED_NUM
     SEED_NUM *= 2
-    
+
     return gpu_seed_generator(codes)
 
-def get_N(P,r,I):
 
-    #There is no foreground instances
-    if r<0.1:
-        return 32 #Allocated some seeds at least
+def get_N(P, r, I):
 
-    lnp = math.log(P,math.e)
-    num=math.log(1-math.e**(lnp/I),math.e)
-    den = math.log(1-r/I,math.e)
-    result = num/den
+    # There is no foreground instances
+    if r < 0.1:
+        return 32  # Allocated some seeds at least
 
-    if result<32:
-        result =32 #Allocated some seeds at least
-    elif result>256:
-        result =256 #Our GPU memory's max limitation, you can higher it.
+    lnp = math.log(P, math.e)
+    num = math.log(1 - math.e ** (lnp / I), math.e)
+    den = math.log(1 - r / I, math.e)
+    result = num / den
+
+    if result < 32:
+        result = 32  # Allocated some seeds at least
+    elif result > 256:
+        result = 256  # Our GPU memory's max limitation, you can higher it.
 
     return int(result)
 
 
-def mean_shift_euc(X, bandwidth=None, seeds=None, 
-                      cluster_all=True, GPU=True):
+def mean_shift_euc(X, bandwidth=None, seeds=None, cluster_all=True, GPU=True):
     """Perform mean shift clustering of data using a flat kernel.
     Read more in the :ref:`User Guide <mean_shift>`.
     Parameters
@@ -136,7 +133,7 @@ def mean_shift_euc(X, bandwidth=None, seeds=None,
         the number of samples. The sklearn.cluster.estimate_bandwidth function
         can be used to do this more efficiently.
     seeds : array-like, shape=[n_seeds, n_features] or None
-        Point used as initial kernel locations. 
+        Point used as initial kernel locations.
     cluster_all : boolean, default True
         If true, then all points are clustered, even those orphans that are
         not within any kernel. Orphans are assigned to the nearest kernel.
@@ -154,54 +151,54 @@ def mean_shift_euc(X, bandwidth=None, seeds=None,
     if bandwidth is None:
         bandwidth = estimate_bandwidth(X)
     elif bandwidth <= 0:
-        raise ValueError("bandwidth needs to be greater than zero or None,\
-            got %f" % bandwidth)
+        raise ValueError(
+            "bandwidth needs to be greater than zero or None,\
+            got %f"
+            % bandwidth
+        )
     if seeds is None:
         if GPU == True:
             seeds = gpu_seed_generator(X)
-            
-    
-    #adjusted=False
+
+    # adjusted=False
     n_samples, n_features = X.shape
     center_intensity_dict = {}
-    nbrs = NearestNeighbors(radius=bandwidth, metric='cosine').fit(X)
-    #NearestNeighbors(radius=bandwidth, n_jobs=n_jobs, metric='cosine').radius_neighbors()
+    nbrs = NearestNeighbors(radius=bandwidth, metric="cosine").fit(X)
+    # NearestNeighbors(radius=bandwidth, n_jobs=n_jobs, metric='cosine').radius_neighbors()
 
     global SEED_NUM
     if GPU == True:
-        #GPU ver
+        # GPU ver
         while True:
-            labels, number = meanshift_torch(X, seeds, bandwidth)#gpu calculation
+            labels, number = meanshift_torch(X, seeds, bandwidth)  # gpu calculation
             for i in range(len(number)):
                 if number[i] is not None:
-                    center_intensity_dict[tuple(labels[i])] = number[i]#find out cluster
+                    center_intensity_dict[tuple(labels[i])] = number[i]  # find out cluster
 
             if not center_intensity_dict:
                 # nothing near seeds
-                raise ValueError("No point was within bandwidth=%f of any seed."
-                            " Try a different seeding strategy \
+                raise ValueError(
+                    "No point was within bandwidth=%f of any seed."
+                    " Try a different seeding strategy \
                              or increase the bandwidth."
-                            % bandwidth)
+                    % bandwidth
+                )
 
             # POST PROCESSING: remove near duplicate points
             # If the distance between two kernels is less than the bandwidth,
             # then we have to remove one because it is a duplicate. Remove the
             # one with fewer points.
 
-            sorted_by_intensity = sorted(center_intensity_dict.items(),
-                                        key=lambda tup: (tup[1], tup[0]),
-                                        reverse=True)
+            sorted_by_intensity = sorted(center_intensity_dict.items(), key=lambda tup: (tup[1], tup[0]), reverse=True)
             sorted_centers = np.array([tup[0] for tup in sorted_by_intensity])
             unique = np.ones(len(sorted_centers), dtype=np.bool)
-            nbrs = NearestNeighbors(radius=bandwidth, metric='cosine').fit(sorted_centers)
+            nbrs = NearestNeighbors(radius=bandwidth, metric="cosine").fit(sorted_centers)
             for i, center in enumerate(sorted_centers):
                 if unique[i]:
-                    neighbor_idxs = nbrs.radius_neighbors([center],
-                                                    return_distance=False)[0]
+                    neighbor_idxs = nbrs.radius_neighbors([center], return_distance=False)[0]
                     unique[neighbor_idxs] = 0
                     unique[i] = 1  # leave the current point as unique
             cluster_centers = sorted_centers[unique]
-
 
             # assign labels
             nbrs = NearestNeighbors(n_neighbors=1).fit(cluster_centers)
@@ -214,28 +211,26 @@ def mean_shift_euc(X, bandwidth=None, seeds=None,
                 bool_selector = distances.flatten() <= bandwidth
                 labels[bool_selector] = idxs.flatten()[bool_selector]
 
-            #Test
-            #break
+            # Test
+            # break
 
-            bg_num = np.sum(labels==0)
-            r = 1-bg_num/labels.size
-            #seed number adjust
-            dict_len = len(cluster_centers)#cluster number
+            bg_num = np.sum(labels == 0)
+            r = 1 - bg_num / labels.size
+            # seed number adjust
+            dict_len = len(cluster_centers)  # cluster number
 
             M = dict_len
 
-            
-            if L*M <= SEED_NUM: #safety area
-                #SEED_NUM -= 200#test
-                #if H*M  <= SEED_NUM:
+            if L * M <= SEED_NUM:  # safety area
+                # SEED_NUM -= 200#test
+                # if H*M  <= SEED_NUM:
                 #    SEED_NUM -= M #seeds are too much, adjsut
-                
+
                 break
             else:
-                seeds = gpu_seed_adjust(X)#seeds are too few, adjsut
-        
-        return cluster_centers, labels
+                seeds = gpu_seed_adjust(X)  # seeds are too few, adjsut
 
+        return cluster_centers, labels
 
 
 class MeanShiftEuc(BaseEstimator, ClusterMixin):
@@ -290,6 +285,7 @@ class MeanShiftEuc(BaseEstimator, ClusterMixin):
     feature space analysis". IEEE Transactions on Pattern Analysis and
     Machine Intelligence. 2002. pp. 603-619.
     """
+
     def __init__(self, bandwidth=None, seeds=None, cluster_all=True, GPU=True):
         self.bandwidth = bandwidth
         self.seeds = seeds
@@ -305,9 +301,9 @@ class MeanShiftEuc(BaseEstimator, ClusterMixin):
         y : Ignored
         """
         X = check_array(X)
-        self.cluster_centers_, self.labels_ = \
-            mean_shift_euc(X, bandwidth=self.bandwidth, seeds=self.seeds,
-                       cluster_all=self.cluster_all, GPU=self.GPU)
+        self.cluster_centers_, self.labels_ = mean_shift_euc(
+            X, bandwidth=self.bandwidth, seeds=self.seeds, cluster_all=self.cluster_all, GPU=self.GPU
+        )
         return self
 
     def predict(self, X):

@@ -1,6 +1,5 @@
 from typing import List, Optional
 import torch
-import copy
 import torch_geometric
 from torch_geometric.data import Data
 from torch_geometric.data import Batch
@@ -35,14 +34,12 @@ class MultiScaleData(Data):
 
     @property
     def num_scales(self):
-        """ Number of scales in the multiscale array
-        """
+        """Number of scales in the multiscale array"""
         return len(self.multiscale) if hasattr(self, "multiscale") and self.multiscale else 0
 
     @property
     def num_upsample(self):
-        """ Number of upsample operations
-        """
+        """Number of upsample operations"""
         return len(self.upsample) if hasattr(self, "upsample") and self.upsample else 0
 
     @classmethod
@@ -102,7 +99,7 @@ class MultiScaleBatch(MultiScaleData):
 
 
 def from_data_list_token(data_list, follow_batch=[]):
-    """ This is pretty a copy paste of the from data list of pytorch geometric
+    """This is pretty a copy paste of the from data list of pytorch geometric
     batch object with the difference that indexes that are negative are not incremented
     """
 
@@ -151,13 +148,11 @@ def from_data_list_token(data_list, follow_batch=[]):
     for key in batch.keys:
         item = batch[key][0]
         if torch.is_tensor(item):
-            batch[key] = torch.cat(
-                batch[key], dim=data_list[0].__cat_dim__(key, item))
+            batch[key] = torch.cat(batch[key], dim=data_list[0].__cat_dim__(key, item))
         elif isinstance(item, int) or isinstance(item, float):
             batch[key] = torch.tensor(batch[key])
         else:
-            raise ValueError(
-                "Unsupported attribute type {} : {}".format(type(item), item))
+            raise ValueError("Unsupported attribute type {} : {}".format(type(item), item))
 
     if torch_geometric.is_debug_enabled():
         batch.debug()

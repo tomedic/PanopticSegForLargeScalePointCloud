@@ -2,8 +2,6 @@ import torch.nn as nn
 
 import torchsparse
 import torchsparse.nn as spnn
-import torchsparse.nn.functional as spf
-from torchsparse.sparse_tensor import SparseTensor
 from torchsparse.point_tensor import PointTensor
 from torchsparse.utils.kernel_region import *
 from torchsparse.utils.helpers import *
@@ -101,9 +99,21 @@ class PVCNN(nn.Module):
 
         self.point_transforms = nn.ModuleList(
             [
-                nn.Sequential(nn.Linear(cs[0], cs[4]), nn.BatchNorm1d(cs[4]), nn.ReLU(True),),
-                nn.Sequential(nn.Linear(cs[4], cs[6]), nn.BatchNorm1d(cs[6]), nn.ReLU(True),),
-                nn.Sequential(nn.Linear(cs[6], cs[8]), nn.BatchNorm1d(cs[8]), nn.ReLU(True),),
+                nn.Sequential(
+                    nn.Linear(cs[0], cs[4]),
+                    nn.BatchNorm1d(cs[4]),
+                    nn.ReLU(True),
+                ),
+                nn.Sequential(
+                    nn.Linear(cs[4], cs[6]),
+                    nn.BatchNorm1d(cs[6]),
+                    nn.ReLU(True),
+                ),
+                nn.Sequential(
+                    nn.Linear(cs[6], cs[8]),
+                    nn.BatchNorm1d(cs[8]),
+                    nn.ReLU(True),
+                ),
             ]
         )
 

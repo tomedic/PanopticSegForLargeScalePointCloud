@@ -14,18 +14,15 @@ sys.path.insert(0, ROOT)
 
 # Import building function for model and dataset
 from torch_points3d.datasets.dataset_factory import instantiate_dataset, get_dataset_class
-from torch_points3d.models.model_factory import instantiate_model
 
 # Import BaseModel / BaseDataset for type checking
 from torch_points3d.models.base_model import BaseModel
-from torch_points3d.datasets.base_dataset import BaseDataset
 
 # Import from metrics
 from torch_points3d.metrics.colored_tqdm import Coloredtqdm as Ctq
 from torch_points3d.metrics.model_checkpoint import ModelCheckpoint
 
 # Utils import
-from torch_points3d.utils.colors import COLORS
 
 log = logging.getLogger(__name__)
 
@@ -88,7 +85,11 @@ def main(cfg):
     # Set dataloaders
     dataset = instantiate_dataset(checkpoint.data_config)
     dataset.create_dataloaders(
-        model, cfg.batch_size, cfg.shuffle, cfg.num_workers, False,
+        model,
+        cfg.batch_size,
+        cfg.shuffle,
+        cfg.num_workers,
+        False,
     )
     log.info(dataset)
 

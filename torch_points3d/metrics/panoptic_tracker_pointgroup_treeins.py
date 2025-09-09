@@ -1,4 +1,3 @@
-from sklearn.metrics import f1_score
 import torchnet as tnt
 from typing import NamedTuple, Dict, Any, List, Tuple
 import torch
@@ -13,13 +12,12 @@ from torch_points3d.models.model_interface import TrackerInterface
 from torch_points3d.metrics.segmentation_tracker import SegmentationTracker
 from torch_points3d.metrics.base_tracker import BaseTracker, meter_value
 from torch_points3d.models.panoptic.structures import PanopticResults, PanopticLabels
-from torch_points3d.core.data_transform import SaveOriginalPosId, SaveLocalOriginalPosId
+from torch_points3d.core.data_transform import SaveOriginalPosId
 from torch_points_kernels import instance_iou
 from .box_detection.ap import voc_ap
-import time
 import os
-from os.path import exists, join
-from torch_points3d.models.panoptic.ply import read_ply, write_ply
+from os.path import join
+from torch_points3d.models.panoptic.ply import write_ply
 from sklearn.preprocessing import normalize
 
 # @Treeins: a lot of code copied from torch_points3d/metrics/panoptic_tracker_pointgroup_treeins.py, for changes see @Treeins
@@ -121,13 +119,22 @@ class InstanceAPMeter:
 
 
 class PanopticTracker(SegmentationTracker):
-    """ Class that provides tracking of semantic segmentation as well as
-    instance segmentation """
+    """Class that provides tracking of semantic segmentation as well as
+    instance segmentation"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._metric_func = {**self._metric_func, "pos": max, "neg": min, "map": max, "cov": max, "wcov": max,
-                             "mIPre": max, "mIRec": max, "F1": max}
+        self._metric_func = {
+            **self._metric_func,
+            "pos": max,
+            "neg": min,
+            "map": max,
+            "cov": max,
+            "wcov": max,
+            "mIPre": max,
+            "mIRec": max,
+            "F1": max,
+        }
 
     def reset(self, stage="train"):
         super().reset(stage=stage)
@@ -151,22 +158,23 @@ class PanopticTracker(SegmentationTracker):
         self._iou_per_class = {}
 
     def track(
-            self,
-            model: TrackerInterface,
-            full_res=False,
-            data=None,
-            iou_threshold=0.5,  # 0.25,
-            track_instances=True,
-            min_cluster_points=10,
-            **kwargs
+        self,
+        model: TrackerInterface,
+        full_res=False,
+        data=None,
+        iou_threshold=0.5,  # 0.25,
+        track_instances=True,
+        min_cluster_points=10,
+        **kwargs,
     ):
-        """ Track metrics for panoptic segmentation
-        """
+        """Track metrics for panoptic segmentation"""
         # global block_count
         if not hasattr(self, "block_count"):
             self.block_count = 0  # tells us which cylinder or sphere block track(..) is currently tracking
         if not hasattr(self, "cloud_count"):
-            self.cloud_count = 0  # tells us from which data file the currently tracked cylinder or sphere block was sampled
+            self.cloud_count = (
+                0  # tells us from which data file the currently tracked cylinder or sphere block was sampled
+            )
 
         self._iou_threshold = iou_threshold
         BaseTracker.track(self, model)
@@ -196,8 +204,13 @@ class PanopticTracker(SegmentationTracker):
                 self._acc_meter.add(acc)
 
                 cov, wcov, mPre, mRec, F1 = self._compute_eval(
-                    clusters, predicted_labels, labels, data.batch, labels.num_instances, self._num_classes,
-                    iou_threshold
+                    clusters,
+                    predicted_labels,
+                    labels,
+                    data.batch,
+                    labels.num_instances,
+                    self._num_classes,
+                    iou_threshold,
                 )
                 self._cov.add(cov)
                 self._wcov.add(wcov)
@@ -227,8 +240,9 @@ class PanopticTracker(SegmentationTracker):
                 if self._test_area[i].y is None:
                     raise ValueError("It seems that the test area data does not have labels (attribute y).")
                 self._test_area[i].prediction_count = torch.zeros(self._test_area[i].y.shape[0], dtype=torch.int)
-                self._test_area[i].votes = torch.zeros((self._test_area[i].y.shape[0], self._num_classes),
-                                                       dtype=torch.float)
+                self._test_area[i].votes = torch.zeros(
+                    (self._test_area[i].y.shape[0], self._num_classes), dtype=torch.float
+                )
                 self._test_area[i].ins_pre = -1 * torch.ones(self._test_area[i].y.shape[0], dtype=torch.int)
                 self._test_area[i].max_instance = 0
                 self._test_area[i].clusters = []
@@ -262,33 +276,44 @@ class PanopticTracker(SegmentationTracker):
             c_scores = None
             curins_pre = self.get_cur_ins_pre_label(clusters, c_scores, predicted_labels.cpu().numpy())
             # block merging
-            self._test_area[self.cloud_count].ins_pre, self._test_area[
-                self.cloud_count].max_instance = self.block_merging(original_input_ids.cpu().numpy(),
-                                                                    originids.cpu().numpy(), curins_pre,
-                                                                    self._test_area[
-                                                                        self.cloud_count].ins_pre.cpu().numpy(),
-                                                                    self._test_area[self.cloud_count].max_instance,
-                                                                    model.get_opt_mergeTh(), outputs, predicted_labels)
+            self._test_area[self.cloud_count].ins_pre, self._test_area[self.cloud_count].max_instance = (
+                self.block_merging(
+                    original_input_ids.cpu().numpy(),
+                    originids.cpu().numpy(),
+                    curins_pre,
+                    self._test_area[self.cloud_count].ins_pre.cpu().numpy(),
+                    self._test_area[self.cloud_count].max_instance,
+                    model.get_opt_mergeTh(),
+                    outputs,
+                    predicted_labels,
+                )
+            )
         # if with scorenet and has valid proposals after NMS and score_threshold
         elif clusters:
-            c_scores = outputs.cluster_scores[
-                valid_c_idx].cpu().numpy()  # [outputs.cluster_scores[i].cpu().numpy() for i in valid_c_idx]
+            c_scores = (
+                outputs.cluster_scores[valid_c_idx].cpu().numpy()
+            )  # [outputs.cluster_scores[i].cpu().numpy() for i in valid_c_idx]
             curins_pre = self.get_cur_ins_pre_label(clusters, c_scores, predicted_labels.cpu().numpy())
             # block merging
-            self._test_area[self.cloud_count].ins_pre, self._test_area[
-                self.cloud_count].max_instance = self.block_merging(original_input_ids.cpu().numpy(),
-                                                                    originids.cpu().numpy(), curins_pre,
-                                                                    self._test_area[
-                                                                        self.cloud_count].ins_pre.cpu().numpy(),
-                                                                    self._test_area[self.cloud_count].max_instance,
-                                                                    model.get_opt_mergeTh(), outputs, predicted_labels)
+            self._test_area[self.cloud_count].ins_pre, self._test_area[self.cloud_count].max_instance = (
+                self.block_merging(
+                    original_input_ids.cpu().numpy(),
+                    originids.cpu().numpy(),
+                    curins_pre,
+                    self._test_area[self.cloud_count].ins_pre.cpu().numpy(),
+                    self._test_area[self.cloud_count].max_instance,
+                    model.get_opt_mergeTh(),
+                    outputs,
+                    predicted_labels,
+                )
+            )
 
         #    #c_scores = np.array(c_scores)
         #    self._test_area.clusters, self._test_area.scores = self.block_merging_by_score(self._test_area.scores, self._test_area.clusters, c_scores, clusters, original_input_ids, originids)
         #    self._test_area.ins_pre = self.get_cur_ins_pre_label(self._test_area.clusters, self._test_area.scores.cpu().numpy(), self._test_area.ins_pre.cpu().numpy())
         #    self._test_area.ins_pre = torch.tensor(self._test_area.ins_pre).to(model.device)
 
-        #self._dump_visuals_fortest(outputs, originids, valid_c_idx)
+        # self._dump_visuals_fortest(outputs, originids, valid_c_idx)
 
         self.block_count += 1  # With each call of track(...), we go on cylinder or sphere block further
 
@@ -314,34 +339,54 @@ class PanopticTracker(SegmentationTracker):
             predicted_semlabels = outputs.semantic_logits[cluster, :].max(1)[1]
             mask_score_i = torch.ones_like(predicted_semlabels)
             if outputs.mask_scores != None:
-                mask_score_i = outputs.mask_scores[j: cluster.shape[0] + j, :].squeeze().sigmoid()
+                mask_score_i = outputs.mask_scores[j : cluster.shape[0] + j, :].squeeze().sigmoid()
                 j = j + cluster.shape[0]
-            example_name = 'instance_sphere{:d}_instance{:d}_score{:f}_type{:d}'.format(self.spheres_count, i, score_i,
-                                                                                        instance_type_i)
+            example_name = "instance_sphere{:d}_instance{:d}_score{:f}_type{:d}".format(
+                self.spheres_count, i, score_i, instance_type_i
+            )
             val_name = join("viz_for_test_all_proposals", example_name)
-            write_ply(val_name,
-                      [self._test_area[self.cloud_count].pos[originids[cluster]].detach().cpu().numpy(),
-                       semantic_prob.detach().cpu().numpy(),
-                       predicted_semlabels.detach().cpu().numpy().astype('int32'),
-                       mask_score_i.detach().cpu().numpy().astype('float32'),
-                       self._test_area[self.cloud_count].y[originids[cluster]].detach().cpu().numpy().astype('int32')
-                       ],
-                      ['x', 'y', 'z',
-                       'sem_prob_1', 'sem_prob_2',  # @Treeins: two semantic segmentation classes: non-tree and tree
-                       'pre_sem_label', 'mask_score', 'gt_sem_label'])
+            write_ply(
+                val_name,
+                [
+                    self._test_area[self.cloud_count].pos[originids[cluster]].detach().cpu().numpy(),
+                    semantic_prob.detach().cpu().numpy(),
+                    predicted_semlabels.detach().cpu().numpy().astype("int32"),
+                    mask_score_i.detach().cpu().numpy().astype("float32"),
+                    self._test_area[self.cloud_count].y[originids[cluster]].detach().cpu().numpy().astype("int32"),
+                ],
+                [
+                    "x",
+                    "y",
+                    "z",
+                    "sem_prob_1",
+                    "sem_prob_2",  # @Treeins: two semantic segmentation classes: non-tree and tree
+                    "pre_sem_label",
+                    "mask_score",
+                    "gt_sem_label",
+                ],
+            )
             if i in valid_c_idx:
                 val_name = join("viz_for_test_valid_proposals", example_name)
-                write_ply(val_name,
-                          [self._test_area[self.cloud_count].pos[originids[cluster]].detach().cpu().numpy(),
-                           semantic_prob.detach().cpu().numpy(),
-                           predicted_semlabels.detach().cpu().numpy().astype('int32'),
-                           mask_score_i.detach().cpu().numpy().astype('float32'),
-                           self._test_area[self.cloud_count].y[originids[cluster]].detach().cpu().numpy().astype(
-                               'int32')
-                           ],
-                          ['x', 'y', 'z',
-                           'sem_prob_1', 'sem_prob_2',  # @Treeins: two semantic segmentation classes: non-tree and tree
-                           'pre_sem_label', 'mask_score', 'gt_sem_label'])
+                write_ply(
+                    val_name,
+                    [
+                        self._test_area[self.cloud_count].pos[originids[cluster]].detach().cpu().numpy(),
+                        semantic_prob.detach().cpu().numpy(),
+                        predicted_semlabels.detach().cpu().numpy().astype("int32"),
+                        mask_score_i.detach().cpu().numpy().astype("float32"),
+                        self._test_area[self.cloud_count].y[originids[cluster]].detach().cpu().numpy().astype("int32"),
+                    ],
+                    [
+                        "x",
+                        "y",
+                        "z",
+                        "sem_prob_1",
+                        "sem_prob_2",  # @Treeins: two semantic segmentation classes: non-tree and tree
+                        "pre_sem_label",
+                        "mask_score",
+                        "gt_sem_label",
+                    ],
+                )
         self.spheres_count += 1
 
     def get_cur_ins_pre_label(self, clusters, cluster_scores, predicted_semlabels):
@@ -357,8 +402,9 @@ class PanopticTracker(SegmentationTracker):
                     cur_ins_pre_label[clusters[i].cpu().numpy()] = i
         return cur_ins_pre_label
 
-    def block_merging(self, originids, origin_sub_ids, pre_sub_ins, all_pre_ins, max_instance, th_merge, outputs,
-                      predicted_sem_labels):
+    def block_merging(
+        self, originids, origin_sub_ids, pre_sub_ins, all_pre_ins, max_instance, th_merge, outputs, predicted_sem_labels
+    ):
 
         # output interme results
         has_prediction = pre_sub_ins != -1
@@ -366,41 +412,80 @@ class PanopticTracker(SegmentationTracker):
         if np.any(has_prediction):
             if not os.path.exists("viz"):
                 os.mkdir("viz")
-            if hasattr(outputs, 'embed_logits'):
+            if hasattr(outputs, "embed_logits"):
                 val_name = join("viz", "block_sub_embed_" + str(self.block_count))
                 embed_i = outputs.embed_logits.cpu().detach().numpy()
                 sample_embed_logits = normalize(embed_i, axis=0)
-                write_ply(val_name,
-                          [self._test_area[self.cloud_count].pos[origin_sub_ids].detach().cpu().numpy(),
-                           pre_sub_ins.astype('int32'),
-                           self._test_area[self.cloud_count].instance_labels[
-                               origin_sub_ids].detach().cpu().numpy().astype('int32'),
-                           sample_embed_logits.astype('float32'),
-                           predicted_sem_labels.cpu().numpy().astype('int32'),
-                           self._test_area[self.cloud_count].y[origin_sub_ids].detach().cpu().numpy().astype('int32')
-                           ],
-                          ['x', 'y', 'z', 'preins_label', 'ins_gt', 'embed1', 'embed2', 'embed3', 'embed4', 'embed5',
-                           # ['x', 'y', 'z', 'preins_label','ins_gt','embed1','embed2','embed3','embed4','embed5','embed6','embed7','embed8',
-                           'pre_sem_label', 'gt_sem_label'])
-            if hasattr(outputs, 'offset_logits'):
+                write_ply(
+                    val_name,
+                    [
+                        self._test_area[self.cloud_count].pos[origin_sub_ids].detach().cpu().numpy(),
+                        pre_sub_ins.astype("int32"),
+                        self._test_area[self.cloud_count]
+                        .instance_labels[origin_sub_ids]
+                        .detach()
+                        .cpu()
+                        .numpy()
+                        .astype("int32"),
+                        sample_embed_logits.astype("float32"),
+                        predicted_sem_labels.cpu().numpy().astype("int32"),
+                        self._test_area[self.cloud_count].y[origin_sub_ids].detach().cpu().numpy().astype("int32"),
+                    ],
+                    [
+                        "x",
+                        "y",
+                        "z",
+                        "preins_label",
+                        "ins_gt",
+                        "embed1",
+                        "embed2",
+                        "embed3",
+                        "embed4",
+                        "embed5",
+                        # ['x', 'y', 'z', 'preins_label','ins_gt','embed1','embed2','embed3','embed4','embed5','embed6','embed7','embed8',
+                        "pre_sem_label",
+                        "gt_sem_label",
+                    ],
+                )
+            if hasattr(outputs, "offset_logits"):
                 val_name = join("viz", "block_sub_offset_" + str(self.block_count))
                 offset_i = outputs.offset_logits.cpu().detach().numpy()
                 shifted_cor = offset_i + self._test_area[self.cloud_count].pos[origin_sub_ids].detach().cpu().numpy()
-                write_ply(val_name,
-                          [self._test_area[self.cloud_count].pos[origin_sub_ids].detach().cpu().numpy(),
-                           pre_sub_ins.astype('int32'),
-                           self._test_area[self.cloud_count].instance_labels[
-                               origin_sub_ids].detach().cpu().numpy().astype('int32'),
-                           shifted_cor.astype('float32'),
-                           predicted_sem_labels.cpu().numpy().astype('int32'),
-                           self._test_area[self.cloud_count].y[origin_sub_ids].detach().cpu().numpy().astype('int32')
-                           ],
-                          ['x', 'y', 'z', 'preins_label', 'ins_gt', 'center_pre_x', 'center_pre_y', 'center_pre_z',
-                           'pre_sem_label', 'gt_sem_label'])
+                write_ply(
+                    val_name,
+                    [
+                        self._test_area[self.cloud_count].pos[origin_sub_ids].detach().cpu().numpy(),
+                        pre_sub_ins.astype("int32"),
+                        self._test_area[self.cloud_count]
+                        .instance_labels[origin_sub_ids]
+                        .detach()
+                        .cpu()
+                        .numpy()
+                        .astype("int32"),
+                        shifted_cor.astype("float32"),
+                        predicted_sem_labels.cpu().numpy().astype("int32"),
+                        self._test_area[self.cloud_count].y[origin_sub_ids].detach().cpu().numpy().astype("int32"),
+                    ],
+                    [
+                        "x",
+                        "y",
+                        "z",
+                        "preins_label",
+                        "ins_gt",
+                        "center_pre_x",
+                        "center_pre_y",
+                        "center_pre_z",
+                        "pre_sem_label",
+                        "gt_sem_label",
+                    ],
+                )
 
             # assign_index  = knn(self._test_area.pos[origin_sub_ids[has_prediction]], self._test_area.pos[originids], k=1)
-            assign_index = knn(self._test_area[self.cloud_count].pos[origin_sub_ids],
-                               self._test_area[self.cloud_count].pos[originids], k=1)
+            assign_index = knn(
+                self._test_area[self.cloud_count].pos[origin_sub_ids],
+                self._test_area[self.cloud_count].pos[originids],
+                k=1,
+            )
 
             y_idx, x_idx = assign_index
 
@@ -408,11 +493,14 @@ class PanopticTracker(SegmentationTracker):
             pre_ins = pre_sub_ins[x_idx.detach().cpu().numpy()]
             # has_prediction = full_ins_pred != -1
             val_name = join("viz", "block_" + str(self.block_count))
-            write_ply(val_name,
-                      [self._test_area[self.cloud_count].pos[originids].detach().cpu().numpy(),
-                       pre_ins.astype('int32'),
-                       ],
-                      ['x', 'y', 'z', 'preins_label'])
+            write_ply(
+                val_name,
+                [
+                    self._test_area[self.cloud_count].pos[originids].detach().cpu().numpy(),
+                    pre_ins.astype("int32"),
+                ],
+                ["x", "y", "z", "preins_label"],
+            )
 
             t_num_clusters = np.max(pre_ins) + 1
             # print(np.unique(pre_ins))
@@ -442,9 +530,11 @@ class PanopticTracker(SegmentationTracker):
                     new_label_ii_idx = originids[np.argwhere(new_label == ii_idx).reshape(-1)]
 
                     new_has_old_idx = new_label_ii_idx[
-                        np.argwhere(all_pre_ins[new_label_ii_idx] != -1)]  # new prediction already has old label
+                        np.argwhere(all_pre_ins[new_label_ii_idx] != -1)
+                    ]  # new prediction already has old label
                     new_not_old_idx = new_label_ii_idx[
-                        np.argwhere(all_pre_ins[new_label_ii_idx] == -1)]  # new prediction has no old label
+                        np.argwhere(all_pre_ins[new_label_ii_idx] == -1)
+                    ]  # new prediction has no old label
                     # print(new_has_old_idx)
                     # print(len(new_label_ii_idx))
                     # print(len(new_has_old_idx))
@@ -494,8 +584,9 @@ class PanopticTracker(SegmentationTracker):
         if not new_clusters:
             return all_clusters, all_scores
 
-        assign_index = knn(self._test_area[self.cloud_count].pos[origin_sub_ids],
-                           self._test_area[self.cloud_count].pos[originids], k=1)
+        assign_index = knn(
+            self._test_area[self.cloud_count].pos[origin_sub_ids], self._test_area[self.cloud_count].pos[originids], k=1
+        )
         y_idx, x_idx = assign_index
         # pre_ins = pre_sub_ins[has_prediction][x_idx.detach().cpu().numpy()]
         # pre_ins = pre_sub_ins[x_idx.detach().cpu().numpy()]
@@ -516,7 +607,7 @@ class PanopticTracker(SegmentationTracker):
         else:
             all_prop_scores = torch.cat((all_scores, new_scores))
 
-        '''n_prop = len(all_prop_to_be_merged)
+        """n_prop = len(all_prop_to_be_merged)
         proposal_masks = torch.zeros(n_prop, self._test_area.y.shape[0]) #.to(cluster.device)
         # for i, cluster in enumerate(self.clusters):
         #     proposal_masks[i, cluster] = 1
@@ -536,7 +627,7 @@ class PanopticTracker(SegmentationTracker):
         proposals_pn_v = proposals_pointnum.unsqueeze(0).repeat(proposals_pointnum.shape[0], 1)
         cross_ious = intersection / (proposals_pn_h + proposals_pn_v - intersection)
         pick_idxs = self.non_max_suppression(cross_ious.cpu().numpy(), all_prop_scores.cpu().numpy(), nms_threshold)
-        '''
+        """
         n_prop = len(all_prop_to_be_merged)
         cross_ious = np.identity(n_prop)
         for i, cluster_i in enumerate(all_prop_to_be_merged[:-2]):
@@ -591,19 +682,22 @@ class PanopticTracker(SegmentationTracker):
 
                     # self._test_area = self._test_area.to("cpu")
                     full_pred = knn_interpolate(
-                        test_area_i.votes[has_prediction], test_area_i.pos[has_prediction], test_area_i.pos, k=1,
+                        test_area_i.votes[has_prediction],
+                        test_area_i.pos[has_prediction],
+                        test_area_i.pos,
+                        k=1,
                     )
                     # semantic prediction with color for full cloud
-                    '''self._dataset.to_ply(
+                    """self._dataset.to_ply(
                         self._test_area.pos,
                         torch.argmax(full_pred, 1).numpy(),
                         "vote1regularfull.ply",
-                    )'''
+                    )"""
                     # semantic prediction and GT label full cloud (for final evaluation)
                     self._dataset.to_eval_ply(
                         test_area_i.pos,
-                        torch.argmax(full_pred, 1).numpy(), #[0, ..]
-                        test_area_i.y,   #[-1, ...]
+                        torch.argmax(full_pred, 1).numpy(),  # [0, ..]
+                        test_area_i.y,  # [-1, ...]
                         "Semantic_results_forEval_{}.ply".format(i),
                     )
                     # instance
@@ -661,19 +755,19 @@ class PanopticTracker(SegmentationTracker):
                         size_l = full_ins_pred[label_mask_l].shape[0]
                         if size_l < 10:
                             full_ins_pred[label_mask_l] = -1
-                            
+
                     self._dataset.to_eval_ply(
                         test_area_i.pos,
-                        full_ins_pred.numpy(), #[-1, ...]
-                        test_area_i.instance_labels, #[0, ..]
+                        full_ins_pred.numpy(),  # [-1, ...]
+                        test_area_i.instance_labels,  # [0, ..]
                         "Instance_Results_forEval{}.ply".format(i),
                     )
-                    '''self._dataset.to_eval_ply(
+                    """self._dataset.to_eval_ply(
                         self._test_area.pos,
                         full_ins_pred_offset.numpy(),
                         self._test_area.instance_labels,
                         "Instance_Offset_results_forEval.ply",
-                    )'''
+                    )"""
 
                     self._dataset.final_eval(
                         torch.argmax(full_pred, 1).numpy(),
@@ -707,8 +801,7 @@ class PanopticTracker(SegmentationTracker):
 
     @staticmethod
     def _compute_acc(clusters, predicted_labels, labels, batch, num_instances, iou_threshold):
-        """ Computes the ratio of True positives, False positives and accuracy
-        """
+        """Computes the ratio of True positives, False positives and accuracy"""
         iou_values, gt_ids = instance_iou(clusters, labels.instance_labels, batch).max(1)
         gt_ids += 1
         instance_offsets = torch.cat((torch.tensor([0]).to(num_instances.device), num_instances.cumsum(-1)))
@@ -778,12 +871,12 @@ class PanopticTracker(SegmentationTracker):
                 all_mean_weighted_cov[i_sem].append(0)
                 continue
             for ig, ins_gt in enumerate(pts_in_gt[i_sem]):
-                ovmax = 0.
+                ovmax = 0.0
                 num_ins_gt_point = torch.sum(ins_gt)
                 num_gt_point += num_ins_gt_point
                 for ip, ins_pred in enumerate(pts_in_pred[i_sem]):
-                    union = (ins_pred | ins_gt)
-                    intersect = (ins_pred & ins_gt)
+                    union = ins_pred | ins_gt
+                    intersect = ins_pred & ins_gt
                     iou = float(torch.sum(intersect)) / torch.sum(union)
 
                     if iou >= ovmax:
@@ -813,19 +906,19 @@ class PanopticTracker(SegmentationTracker):
                 continue
             IoU_Tp_per = 0
             IoU_Mc_per = 0
-            tp = [0.] * len(pts_in_pred[i_sem])
-            fp = [0.] * len(pts_in_pred[i_sem])
+            tp = [0.0] * len(pts_in_pred[i_sem])
+            fp = [0.0] * len(pts_in_pred[i_sem])
             # gtflag = np.zeros(len(pts_in_gt[i_sem]))
             if pts_in_gt[i_sem]:
                 total_gt_ins[i_sem] += len(pts_in_gt[i_sem])
             for ip, ins_pred in enumerate(pts_in_pred[i_sem]):
-                ovmax = -1.
+                ovmax = -1.0
                 if not pts_in_gt[i_sem]:
                     fp[ip] = 1
                     continue
                 for ig, ins_gt in enumerate(pts_in_gt[i_sem]):
-                    union = (ins_pred | ins_gt)
-                    intersect = (ins_pred & ins_gt)
+                    union = ins_pred | ins_gt
+                    intersect = ins_pred & ins_gt
                     iou = (float(torch.sum(intersect)) / torch.sum(union)).item()
 
                     if iou > ovmax:
@@ -899,10 +992,11 @@ class PanopticTracker(SegmentationTracker):
             PQStar[i_sem] = PQ[i_sem]
 
         if torch.mean(precision[list3]) + torch.mean(recall[list3]) == 0:
-            F1_score = torch.tensor(0.)
+            F1_score = torch.tensor(0.0)
         else:
             F1_score = (2 * torch.mean(precision[list3]) * torch.mean(recall[list3])) / (
-                        torch.mean(precision[list3]) + torch.mean(recall[list3]))
+                torch.mean(precision[list3]) + torch.mean(recall[list3])
+            )
         cov = torch.mean(MUCov[list3])
         wcov = torch.mean(MWCov[list3])
         mPre = torch.mean(precision[list3])
@@ -924,14 +1018,18 @@ class PanopticTracker(SegmentationTracker):
 
         # Full res interpolation
         full_pred = knn_interpolate(
-            self._test_area.votes[has_prediction], self._test_area.pos[has_prediction], self._test_area.pos, k=1,
+            self._test_area.votes[has_prediction],
+            self._test_area.pos[has_prediction],
+            self._test_area.pos,
+            k=1,
         )
 
         # Full res pred
         self._full_confusion = ConfusionMatrix(self._num_classes)
         gt_effect = self._test_area.y >= 0
-        self._full_confusion.count_predicted_batch(self._test_area.y[gt_effect].numpy(),
-                                                   torch.argmax(full_pred, 1)[gt_effect].numpy())
+        self._full_confusion.count_predicted_batch(
+            self._test_area.y[gt_effect].numpy(), torch.argmax(full_pred, 1)[gt_effect].numpy()
+        )
         self._full_vote_miou = self._full_confusion.get_average_intersection_union() * 100
 
     @staticmethod
@@ -955,15 +1053,15 @@ class PanopticTracker(SegmentationTracker):
             indices = cl.cpu().numpy() - offsets[sample_idx]
             if scores == None:
                 instances.append(
-                    _Instance(
-                        classname=predicted_labels[cl[0]].item(), score=-1, indices=indices, scan_id=scan_id
-                    )
+                    _Instance(classname=predicted_labels[cl[0]].item(), score=-1, indices=indices, scan_id=scan_id)
                 )
             else:
                 instances.append(
                     _Instance(
-                        classname=predicted_labels[cl[0]].item(), score=scores[i].item(), indices=indices,
-                        scan_id=scan_id
+                        classname=predicted_labels[cl[0]].item(),
+                        score=scores[i].item(),
+                        indices=indices,
+                        scan_id=scan_id,
                     )
                 )
         return instances
@@ -991,8 +1089,7 @@ class PanopticTracker(SegmentationTracker):
         return instances
 
     def get_metrics(self, verbose=False) -> Dict[str, Any]:
-        """ Returns a dictionnary of all metrics and losses being tracked
-        """
+        """Returns a dictionnary of all metrics and losses being tracked"""
         metrics = super().get_metrics(verbose)
 
         metrics["{}_pos".format(self._stage)] = meter_value(self._pos)

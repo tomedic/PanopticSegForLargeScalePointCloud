@@ -2,7 +2,6 @@ import torch.nn as nn
 import MinkowskiEngine as ME
 from .common import ConvType, NormType
 
-from torch_points3d.utils.config import is_list
 
 
 class BasicBlock(nn.Module):
@@ -52,7 +51,7 @@ class BasicBlock(nn.Module):
         if self.downsample is not None:
             residual = self.downsample(x)
 
-        out =  out + residual
+        out = out + residual
         out = self.relu(out)
 
         return out
@@ -122,7 +121,7 @@ class BaseResBlock(nn.Module):
         activation=ME.MinkowskiReLU,
         bn_momentum=0.1,
         dimension=-1,
-        **kwargs
+        **kwargs,
     ):
 
         super(BaseResBlock, self).__init__()
@@ -188,7 +187,7 @@ class ResnetBlockDown(BaseResBlock):
         bn_momentum=0.1,
         dimension=-1,
         down_stride=2,
-        **kwargs
+        **kwargs,
     ):
 
         super(ResnetBlockDown, self).__init__(
@@ -237,7 +236,7 @@ class ResnetBlockUp(BaseResBlock):
         dimension=-1,
         up_stride=2,
         skip=True,
-        **kwargs
+        **kwargs,
     ):
 
         self.skip = skip
@@ -315,7 +314,7 @@ class SEBasicBlock(BasicBlock):
         if self.downsample is not None:
             residual = self.downsample(x)
 
-        out =  out + residual
+        out = out + residual
         out = self.relu(out)
 
         return out
@@ -360,7 +359,7 @@ class SEBottleneck(Bottleneck):
         if self.downsample is not None:
             residual = self.downsample(x)
 
-        out =  out + residual
+        out = out + residual
         out = self.relu(out)
 
         return out

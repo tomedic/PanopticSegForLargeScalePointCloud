@@ -2,14 +2,13 @@ from typing import Dict, Any
 import torch
 import torchnet as tnt
 
-from torch_points3d.metrics.confusion_matrix import ConfusionMatrix
 from torch_points3d.metrics.base_tracker import BaseTracker, meter_value
 from torch_points3d.models import model_interface
 
 
 class ClassificationTracker(BaseTracker):
     def __init__(self, dataset, stage="train", wandb_log=False, use_tensorboard: bool = False):
-        """ This is a generic tracker for segmentation tasks.
+        """This is a generic tracker for segmentation tasks.
         It uses a confusion matrix in the back-end to track results.
         Use the tracker to track an epoch.
         You can use the reset function before you start a new epoch
@@ -39,8 +38,7 @@ class ClassificationTracker(BaseTracker):
         return acc
 
     def track(self, model: model_interface.TrackerInterface, **kwargs):
-        """ Add current model predictions (usually the result of a batch) to the tracking
-        """
+        """Add current model predictions (usually the result of a batch) to the tracking"""
         super().track(model)
 
         outputs = model.get_output()
@@ -49,8 +47,7 @@ class ClassificationTracker(BaseTracker):
         self._acc.add(100 * self.compute_acc(outputs, targets))
 
     def get_metrics(self, verbose=False) -> Dict[str, Any]:
-        """ Returns a dictionnary of all metrics and losses being tracked
-        """
+        """Returns a dictionnary of all metrics and losses being tracked"""
         metrics = super().get_metrics(verbose)
         metrics["{}_acc".format(self._stage)] = meter_value(self._acc)
         return metrics

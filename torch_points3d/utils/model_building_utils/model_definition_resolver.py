@@ -1,16 +1,17 @@
 from omegaconf.dictconfig import DictConfig
 from omegaconf.listconfig import ListConfig
-#import torch
+
+# import torch
+
 
 def resolve_model(model_config, dataset, tested_task):
-    """ Parses the model config and evaluates any expression that may contain constants
-    """
+    """Parses the model config and evaluates any expression that may contain constants"""
     # placeholders to subsitute
-    #if dataset.feature_dimension==None:
+    # if dataset.feature_dimension==None:
     #    dataset.feature_dimension=4  ###
-    #if dataset.num_classes==None:
+    # if dataset.num_classes==None:
     #    dataset.num_classes=9  ###
-    #if dataset.stuff_classes==None:
+    # if dataset.stuff_classes==None:
     #    a= [0,1,5]
     #    dataset.stuff_classes = torch.as_tensor(a)
     constants = {
@@ -27,7 +28,7 @@ def resolve_model(model_config, dataset, tested_task):
 
 
 def resolve(obj, constants):
-    """ Resolves expressions and constants in obj.
+    """Resolves expressions and constants in obj.
     returns False if obj is a ListConfig or DictConfig, True is obj is a primative type.
     """
     if type(obj) == DictConfig:

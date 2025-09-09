@@ -7,7 +7,6 @@ from torch_geometric.nn.unpool import knn_interpolate
 
 from torch_points3d.metrics.confusion_matrix import ConfusionMatrix
 from torch_points3d.metrics.segmentation_tracker import SegmentationTracker
-from torch_points3d.datasets.segmentation import IGNORE_LABEL
 from torch_points3d.core.data_transform import SaveOriginalPosId
 from torch_points3d.models import model_interface
 
@@ -25,8 +24,7 @@ class ScannetSegmentationTracker(SegmentationTracker):
         self._full_acc = None
 
     def track(self, model: model_interface.TrackerInterface, full_res=False, **kwargs):
-        """ Add current model predictions (usually the result of a batch) to the tracking
-        """
+        """Add current model predictions (usually the result of a batch) to the tracking"""
         super().track(model)
 
         # Set conv type
@@ -39,8 +37,7 @@ class ScannetSegmentationTracker(SegmentationTracker):
         self._vote(kwargs.get("data"), model.get_output())
 
     def get_metrics(self, verbose=False) -> Dict[str, Any]:
-        """ Returns a dictionnary of all metrics and losses being tracked
-        """
+        """Returns a dictionnary of all metrics and losses being tracked"""
         metrics = super().get_metrics(verbose)
         if self._full_acc:
             metrics["{}_full_acc".format(self._stage)] = self._full_acc
@@ -83,7 +80,7 @@ class ScannetSegmentationTracker(SegmentationTracker):
             np.savetxt(path_file, full_pred, delimiter="/n", fmt="%d")
 
     def _vote(self, data, output):
-        """ Populates scores for the points in data
+        """Populates scores for the points in data
 
         Parameters
         ----------
@@ -118,7 +115,7 @@ class ScannetSegmentationTracker(SegmentationTracker):
             self._vote_counts[id_scan][idx] += 1
 
     def _predict_full_res(self):
-        """ Predict full resolution results based on votes """
+        """Predict full resolution results based on votes"""
         for id_scan in self._votes:
             has_prediction = self._vote_counts[id_scan] > 0
             self._votes[id_scan][has_prediction] /= self._vote_counts[id_scan][has_prediction].unsqueeze(-1)

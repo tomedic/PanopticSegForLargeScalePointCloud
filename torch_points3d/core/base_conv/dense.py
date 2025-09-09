@@ -1,20 +1,5 @@
 import numpy as np
 import torch
-from torch.nn import (
-    Linear as Lin,
-    ReLU,
-    LeakyReLU,
-    BatchNorm1d as BN,
-    Dropout,
-)
-from torch_geometric.nn import (
-    knn_interpolate,
-    fps,
-    radius,
-    global_max_pool,
-    global_mean_pool,
-    knn,
-)
 from torch_geometric.data import Data
 import torch_points_kernels as tp
 
@@ -23,17 +8,16 @@ from torch_points3d.core.base_conv import BaseConvolution
 from torch_points3d.core.common_modules.dense_modules import MLP2D
 
 from torch_points3d.utils.enums import ConvolutionFormat
-from torch_points3d.utils.model_building_utils.activation_resolver import get_activation
 
 #################### THOSE MODULES IMPLEMENTS THE BASE DENSE CONV API ############################
 
 
 class BaseDenseConvolutionDown(BaseConvolution):
-    """ Multiscale convolution down (also supports single scale). Convolution kernel is shared accross the scales
+    """Multiscale convolution down (also supports single scale). Convolution kernel is shared accross the scales
 
-        Arguments:
-            sampler  -- Strategy for sampling the input clouds
-            neighbour_finder -- Multiscale strategy for finding neighbours
+    Arguments:
+        sampler  -- Strategy for sampling the input clouds
+        neighbour_finder -- Multiscale strategy for finding neighbours
     """
 
     CONV_TYPE = ConvolutionFormat.DENSE.value
@@ -44,7 +28,7 @@ class BaseDenseConvolutionDown(BaseConvolution):
         self._save_sampling_id = kwargs.get("save_sampling_id", None)
 
     def conv(self, x, pos, new_pos, radius_idx, scale_idx):
-        """ Implements a Dense convolution where radius_idx represents
+        """Implements a Dense convolution where radius_idx represents
         the indexes of the points in x and pos to be agragated into the new feature
         for each point in new_pos
 
@@ -100,7 +84,7 @@ class BaseDenseConvolutionUp(BaseConvolution):
         raise NotImplementedError
 
     def forward(self, data, **kwargs):
-        """ Propagates features from one layer to the next.
+        """Propagates features from one layer to the next.
         data contains information from the down convs in data_skip
 
         Arguments:

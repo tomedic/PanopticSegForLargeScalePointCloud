@@ -1,17 +1,13 @@
 from typing import Any
 import logging
-from omegaconf.dictconfig import DictConfig
-from omegaconf.listconfig import ListConfig
 from torch.nn import Sequential, Dropout, Linear
 import torch.nn.functional as F
 from torch import nn
 
-from .base import Segmentation_MP
 from torch_points3d.core.common_modules import FastBatchNorm1d
 from torch_points3d.modules.KPConv import *
 from torch_points3d.core.base_conv.partial_dense import *
 from torch_points3d.core.common_modules import MultiHeadClassifier
-from torch_points3d.models.base_model import BaseModel
 from torch_points3d.models.base_architectures.unet import UnwrappedUnetBasedModel
 from torch_points3d.datasets.multiscale_data import MultiScaleBatch
 from torch_points3d.datasets.segmentation import IGNORE_LABEL

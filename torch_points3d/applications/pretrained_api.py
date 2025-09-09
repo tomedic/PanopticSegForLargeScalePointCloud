@@ -1,11 +1,9 @@
 import os
 import logging
 import urllib.request
-from omegaconf import DictConfig
 
 # Import building function for model and dataset
 from torch_points3d.datasets.dataset_factory import instantiate_dataset
-from torch_points3d.models.model_factory import instantiate_model
 
 # Import BaseModel / BaseDataset for type checking
 from torch_points3d.models.base_model import BaseModel
@@ -115,7 +113,10 @@ class PretainedRegistry(object):
             weight_name = weight_name if weight_name is not None else "latest"
 
             checkpoint: ModelCheckpoint = ModelCheckpoint(
-                CHECKPOINT_DIR, model_tag, weight_name if weight_name is not None else "latest", resume=False,
+                CHECKPOINT_DIR,
+                model_tag,
+                weight_name if weight_name is not None else "latest",
+                resume=False,
             )
             if mock_dataset:
                 dataset = checkpoint.dataset_properties.copy()
@@ -154,7 +155,10 @@ class PretainedRegistry(object):
         name = name.split(".")[0]  # ModelCheckpoint will add the extension
 
         checkpoint: ModelCheckpoint = ModelCheckpoint(
-            path_dir, name, weight_name if weight_name is not None else "latest", resume=False,
+            path_dir,
+            name,
+            weight_name if weight_name is not None else "latest",
+            resume=False,
         )
         dataset = checkpoint.data_config
 

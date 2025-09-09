@@ -12,7 +12,7 @@ This repository represents the official code for paper entitled "Towards accurat
 
 # Set up environment
 
-The framework used in this code is torchpoints-3d, so generally the installation instructions for torchpoints-3d can follow the official ones: 
+The framework used in this code is torchpoints-3d, so generally the installation instructions for torchpoints-3d can follow the official ones:
 
 https://torch-points3d.readthedocs.io/en/latest/
 
@@ -86,8 +86,8 @@ git clone https://github.com/NVIDIA/MinkowskiEngine.git
 cd MinkowskiEngine
 python setup.py install --blas_include_dirs=${CONDA_PREFIX}/include --blas=openblas
 
-#THE STEPS START FROM HERE ARE EXACT THE SAME AS EXAMPLE 1 
-#CHECK IF TORCH AND MINKOWSKI ENGINE WORK AS EXPECTED: 
+#THE STEPS START FROM HERE ARE EXACT THE SAME AS EXAMPLE 1
+#CHECK IF TORCH AND MINKOWSKI ENGINE WORK AS EXPECTED:
 #...
 
 ```
@@ -129,7 +129,7 @@ https://doi.org/10.5281/zenodo.8118986
 ```
 
 ## FOR-instance dataset
-Updated!! Since FOR-instance dataset is open. I open the link ((https://polybox.ethz.ch/index.php/s/wVBlHgH308GRr1c)) for download: 
+Updated!! Since FOR-instance dataset is open. I open the link ((https://polybox.ethz.ch/index.php/s/wVBlHgH308GRr1c)) for download:
 1. all .ply files
 2. the pretrained model for the input radius of cylinders = 8m
 
@@ -144,7 +144,7 @@ Updated!! Since FOR-instance dataset is open. I open the link ((https://polybox.
 | <h3> TUWIEN </h3> | 2 | 35|
 
 ### Train - validation - test split
-Train - test split is given by NIBIO: 56 train files, 26 test files. We decided on choosing 25% of the train files randomly but fixed as validation set -> 42 train files, 14 val files, 26 test files. 
+Train - test split is given by NIBIO: 56 train files, 26 test files. We decided on choosing 25% of the train files randomly but fixed as validation set -> 42 train files, 14 val files, 26 test files.
 
 ### Data folder structure
 ```bash
@@ -162,10 +162,10 @@ Train - test split is given by NIBIO: 56 train files, 26 test files. We decided 
                 └─ *_test.ply           # All test files
             ├─ NIBIO
                 ├─ *_train.ply          # SIMILAR AS CULS FOLDER
-                ├─ *_val.ply            
-                └─ *_test.ply           
+                ├─ *_val.ply
+                └─ *_test.ply
             ├─ NIBIO2
-                ├─ *.ply                # SIMILAR AS CULS FOLDER          
+                ├─ *.ply                # SIMILAR AS CULS FOLDER
             ├─ RMIT
                 ├─ *.ply                # SIMILAR AS CULS FOLDER
             ├─ SCION

@@ -3,7 +3,6 @@ from omegaconf import DictConfig, OmegaConf
 import logging
 
 from torch_points3d.applications.modelfactory import ModelFactory
-from torch_points3d.core.common_modules import FastBatchNorm1d
 from torch_points3d.modules.KPConv import *
 from torch_points3d.core.base_conv.partial_dense import *
 from torch_points3d.models.base_architectures.unet import UnwrappedUnetBasedModel
@@ -22,7 +21,7 @@ log = logging.getLogger(__name__)
 def KPConv(
     architecture: str = None, input_nc: int = None, num_layers: int = None, config: DictConfig = None, *args, **kwargs
 ):
-    """ Create a KPConv backbone model based on the architecture proposed in
+    """Create a KPConv backbone model based on the architecture proposed in
     https://arxiv.org/abs/1904.08889
 
     Parameters

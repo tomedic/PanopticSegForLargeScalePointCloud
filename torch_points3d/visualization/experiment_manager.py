@@ -2,7 +2,7 @@ import os
 from glob import glob
 from collections import defaultdict
 import torch
-from plyfile import PlyData, PlyElement
+from plyfile import PlyData
 from numpy.lib import recfunctions as rfn
 from torch_points3d.utils.colors import COLORS
 import numpy as np

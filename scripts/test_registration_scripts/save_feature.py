@@ -1,4 +1,3 @@
-import open3d
 import torch
 import hydra
 import logging
@@ -13,8 +12,7 @@ ROOT = os.path.join(DIR, "..", "..")
 sys.path.insert(0, ROOT)
 
 # Import building function for model and dataset
-from torch_points3d.datasets.dataset_factory import instantiate_dataset, get_dataset_class
-from torch_points3d.models.model_factory import instantiate_model
+from torch_points3d.datasets.dataset_factory import instantiate_dataset
 
 from torch_points3d.models.base_model import BaseModel
 from torch_points3d.datasets.base_dataset import BaseDataset
@@ -24,7 +22,6 @@ from torch_points3d.metrics.colored_tqdm import Coloredtqdm as Ctq
 from torch_points3d.metrics.model_checkpoint import ModelCheckpoint
 
 # Utils import
-from torch_points3d.utils.colors import COLORS
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +55,11 @@ def run(model: BaseModel, dataset: BaseDataset, device, output_path, cfg):
         for i in range(num_fragment):
             dataset.set_patches(i)
             dataset.create_dataloaders(
-                model, cfg.training.batch_size, False, cfg.training.num_workers, False,
+                model,
+                cfg.training.batch_size,
+                False,
+                cfg.training.num_workers,
+                False,
             )
             loader = dataset.test_dataloaders[0]
             features = []
@@ -78,7 +79,11 @@ def run(model: BaseModel, dataset: BaseDataset, device, output_path, cfg):
             save(output_path, scene_name, pc_name, dataset.base_dataset[i].to("cpu"), features)
     else:
         dataset.create_dataloaders(
-            model, 1, False, cfg.training.num_workers, False,
+            model,
+            1,
+            False,
+            cfg.training.num_workers,
+            False,
         )
         loader = dataset.test_dataloaders[0]
         with Ctq(loader) as tq_test_loader:

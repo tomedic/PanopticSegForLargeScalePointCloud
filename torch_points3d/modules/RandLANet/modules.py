@@ -8,9 +8,9 @@ from torch_points3d.core.base_conv.message_passing import *
 
 class RandlaKernel(MessagePassing):
     """
-        Implements both the Local Spatial Encoding and Attentive Pooling blocks from
-        RandLA-Net: Efficient Semantic Segmentation of Large-Scale Point Clouds
-        https://arxiv.org/pdf/1911.11236
+    Implements both the Local Spatial Encoding and Attentive Pooling blocks from
+    RandLA-Net: Efficient Semantic Segmentation of Large-Scale Point Clouds
+    https://arxiv.org/pdf/1911.11236
 
     """
 
@@ -81,7 +81,7 @@ class DilatedResidualBlock(BaseResnetBlock):
         global_nn1,
         global_nn2,
         *args,
-        **kwargs
+        **kwargs,
     ):
         if kwargs.get("index") == 0 and kwargs.get("nb_feature") is not None:
             indim = kwargs.get("nb_feature")
@@ -116,7 +116,7 @@ class RandLANetRes(torch.nn.Module):
             down_conv_nn[0],
             down_conv_nn[1],
             *args,
-            **kwargs
+            **kwargs,
         )
 
     def forward(self, data):

@@ -6,7 +6,6 @@ import logging
 import copy
 
 from torch_points3d.modules.pointnet2 import *
-from torch_points3d.core.base_conv.dense import DenseFPModule
 from torch_points3d.models.base_architectures import UnetBasedModel
 from torch_points3d.core.common_modules.dense_modules import Conv1D
 from torch_points3d.core.common_modules.base_modules import Seq
@@ -18,18 +17,18 @@ log = logging.getLogger(__name__)
 
 class PointNet2_D(UnetBasedModel):
     """
-        PointNet2 with multi-scale grouping
-        Semantic segmentation network that uses feature propogation layers
+    PointNet2 with multi-scale grouping
+    Semantic segmentation network that uses feature propogation layers
 
-        Parameters
-        ----------
-        num_classes: int
-            Number of semantics classes to predict over -- size of softmax classifier that run for each point
-        input_channels: int = 6
-            Number of input channels in the feature descriptor for each point.  If the point cloud is Nx9, this
-            value should be 6 as in an Nx9 point cloud, 3 of the channels are xyz, and 6 are feature descriptors
-        use_xyz: bool = True
-            Whether or not to use the xyz position of a point as a feature
+    Parameters
+    ----------
+    num_classes: int
+        Number of semantics classes to predict over -- size of softmax classifier that run for each point
+    input_channels: int = 6
+        Number of input channels in the feature descriptor for each point.  If the point cloud is Nx9, this
+        value should be 6 as in an Nx9 point cloud, 3 of the channels are xyz, and 6 are feature descriptors
+    use_xyz: bool = True
+        Whether or not to use the xyz position of a point as a feature
     """
 
     def __init__(self, option, model_type, dataset, modules):
@@ -89,10 +88,10 @@ class PointNet2_D(UnetBasedModel):
 
     def forward(self, *args, **kwargs):
         r"""
-            Forward pass of the network
-            self.input:
-                x -- Features [B, C, N]
-                pos -- Points [B, N, 3]
+        Forward pass of the network
+        self.input:
+            x -- Features [B, C, N]
+            pos -- Points [B, N, 3]
         """
         data = self.model(self.input)
         last_feature = data.x
@@ -122,4 +121,4 @@ class PointNet2_D(UnetBasedModel):
 
 
 class PointNet2_MP(Segmentation_MP):
-    """ Message passing version of PN2"""
+    """Message passing version of PN2"""

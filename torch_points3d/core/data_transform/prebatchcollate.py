@@ -4,7 +4,7 @@ log = logging.getLogger(__name__)
 
 
 class ClampBatchSize:
-    """ Drops sample in a batch if the batch gets too large
+    """Drops sample in a batch if the batch gets too large
 
     Parameters
     ----------

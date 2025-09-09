@@ -2,8 +2,7 @@ import torch
 import MinkowskiEngine as ME
 import sys
 
-from .common import NormType, get_norm
-from torch_points3d.core.common_modules import Seq, Identity
+from torch_points3d.core.common_modules import Seq
 
 
 class ResBlock(ME.MinkowskiNetwork):
@@ -76,9 +75,9 @@ class ResBlock(ME.MinkowskiNetwork):
     def forward(self, x):
         out = self.block(x)
         if self.downsample:
-            out =  out + self.downsample(x)
+            out = out + self.downsample(x)
         else:
-            out =  out + x
+            out = out + x
         return out
 
 
@@ -153,9 +152,9 @@ class BottleneckBlock(ME.MinkowskiNetwork):
     def forward(self, x):
         out = self.block(x)
         if self.downsample:
-            out =  out + self.downsample(x)
+            out = out + self.downsample(x)
         else:
-            out =  out + x
+            out = out + x
         return out
 
 
@@ -204,9 +203,9 @@ class SEBlock(ResBlock):
         out = self.block(x)
         out = self.SE(out)
         if self.downsample:
-            out =  out + self.downsample(x)
+            out = out + self.downsample(x)
         else:
-            out =  out + x
+            out = out + x
         return out
 
 
@@ -223,9 +222,9 @@ class SEBottleneckBlock(BottleneckBlock):
         out = self.block(x)
         out = self.SE(out)
         if self.downsample:
-            out =  out + self.downsample(x)
+            out = out + self.downsample(x)
         else:
-            out =  out + x
+            out = out + x
         return out
 
 
@@ -300,7 +299,7 @@ class ResNetUp(ResNetDown):
             dimension=dimension,
             stride=stride,
             N=N,
-            **kwargs
+            **kwargs,
         )
 
     def forward(self, x, skip):

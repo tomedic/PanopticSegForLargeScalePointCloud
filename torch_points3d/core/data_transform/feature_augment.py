@@ -50,7 +50,7 @@ class ChromaticTranslation(object):
 
 
 class ChromaticAutoContrast(object):
-    """ Rescale colors between 0 and 1 to enhance contrast
+    """Rescale colors between 0 and 1 to enhance contrast
 
     Parameters
     ----------
@@ -88,7 +88,7 @@ class ChromaticAutoContrast(object):
 
 
 class ChromaticJitter:
-    """ Jitter on the rgb attribute of data
+    """Jitter on the rgb attribute of data
 
     Parameters
     ----------
@@ -113,7 +113,7 @@ class ChromaticJitter:
 
 
 class DropFeature:
-    """ Sets the given feature to 0 with a given probability
+    """Sets the given feature to 0 with a given probability
 
     Parameters
     ----------

@@ -143,7 +143,9 @@ def filter_pair(pair, dist):
     return pair
 
 
-def compute_overlap_and_matches(data1, data2, max_distance_overlap, reciprocity=False, num_pos=1, trans_gt=torch.eye(4)):
+def compute_overlap_and_matches(
+    data1, data2, max_distance_overlap, reciprocity=False, num_pos=1, trans_gt=torch.eye(4)
+):
 
     # we can use ball query on cpu because the points are sorted
     # print(len(data1.pos), len(data2.pos), max_distance_overlap)
@@ -151,7 +153,10 @@ def compute_overlap_and_matches(data1, data2, max_distance_overlap, reciprocity=
         data2.pos.to(torch.float),
         data1.pos.to(torch.float) @ trans_gt[:3, :3].T + trans_gt[:3, 3],
         radius=max_distance_overlap,
-        max_num=num_pos, mode=1, sorted=True)
+        max_num=num_pos,
+        mode=1,
+        sorted=True,
+    )
     pair = filter_pair(pair, dist)
     pair2 = []
     overlap = [pair.shape[0] / len(data1.pos)]
@@ -160,7 +165,10 @@ def compute_overlap_and_matches(data1, data2, max_distance_overlap, reciprocity=
             data1.pos.to(torch.float) @ trans_gt[:3, :3].T + trans_gt[:3, 3],
             data2.pos.to(torch.float),
             radius=max_distance_overlap,
-            max_num=num_pos, mode=1, sorted=True)
+            max_num=num_pos,
+            mode=1,
+            sorted=True,
+        )
         pair2 = filter_pair(pair2, dist2)
         overlap.append(pair2.shape[0] / len(data2.pos))
     # overlap = pair.shape[0] / \
@@ -171,16 +179,18 @@ def compute_overlap_and_matches(data1, data2, max_distance_overlap, reciprocity=
     output = dict(pair=pair, pair2=pair2, overlap=overlap)
     return output
 
+
 def compute_subsampled_matches(data1, data2, voxel_size=0.1, max_distance_overlap=0.02):
     """
     compute matches on subsampled version of data and track ind
     """
-    grid_sampling = Compose([SaveOriginalPosId(), GridSampling3D(voxel_size, mode='last')])
+    grid_sampling = Compose([SaveOriginalPosId(), GridSampling3D(voxel_size, mode="last")])
     subsampled_data = grid_sampling(data1.clone())
     origin_id = subsampled_data.origin_id.numpy()
-    pair = compute_overlap_and_matches(subsampled_data, data2, max_distance_overlap)['pair']
+    pair = compute_overlap_and_matches(subsampled_data, data2, max_distance_overlap)["pair"]
     pair[:, 0] = origin_id[pair[:, 0]]
     return torch.from_numpy(pair.copy())
+
 
 def get_3D_bound(list_path_img, path_intrinsic, list_path_trans, depth_thresh, limit_size=600, voxel_size=0.01):
     vol_bnds = np.zeros((3, 2))
@@ -204,7 +214,7 @@ def get_3D_bound(list_path_img, path_intrinsic, list_path_trans, depth_thresh, l
     vol_dim = (vol_bnds[:, 1] - vol_bnds[:, 0]) / voxel_size
     for i in range(3):
         # add and substract delta to limit the size
-        if(vol_dim[i] > limit_size):
+        if vol_dim[i] > limit_size:
             delta = voxel_size * (vol_dim[i] - limit_size) * 0.5
             vol_bnds[i][0] += delta
             vol_bnds[i][1] -= delta
@@ -221,7 +231,7 @@ def rgbd2fragment_fine(
     pre_transform=None,
     depth_thresh=6,
     save_pc=True,
-    limit_size=600
+    limit_size=600,
 ):
     """
     fuse rgbd frame with a tsdf volume and get the mesh using marching cube.
@@ -231,7 +241,14 @@ def rgbd2fragment_fine(
     begin = 0
     end = num_frame_per_fragment
 
-    vol_bnds = get_3D_bound(list_path_img[begin:end], path_intrinsic, list_path_trans[begin:end], depth_thresh, voxel_size=voxel_size, limit_size=limit_size)
+    vol_bnds = get_3D_bound(
+        list_path_img[begin:end],
+        path_intrinsic,
+        list_path_trans[begin:end],
+        depth_thresh,
+        voxel_size=voxel_size,
+        limit_size=limit_size,
+    )
 
     print(vol_bnds)
     tsdf_vol = fusion.TSDFVolume(vol_bnds, voxel_size=voxel_size)
@@ -261,12 +278,21 @@ def rgbd2fragment_fine(
                 if begin + num_frame_per_fragment < len(list_path_img):
                     end = begin + num_frame_per_fragment
                     vol_bnds = get_3D_bound(
-                        list_path_img[begin:end], path_intrinsic, list_path_trans[begin:end], depth_thresh, voxel_size=voxel_size, limit_size=limit_size
+                        list_path_img[begin:end],
+                        path_intrinsic,
+                        list_path_trans[begin:end],
+                        depth_thresh,
+                        voxel_size=voxel_size,
+                        limit_size=limit_size,
                     )
                 else:
                     vol_bnds = get_3D_bound(
-                        list_path_img[begin:], path_intrinsic, list_path_trans[begin:],
-                        depth_thresh, voxel_size=voxel_size, limit_size=limit_size
+                        list_path_img[begin:],
+                        path_intrinsic,
+                        list_path_trans[begin:],
+                        depth_thresh,
+                        voxel_size=voxel_size,
+                        limit_size=limit_size,
                     )
                 tsdf_vol = fusion.TSDFVolume(vol_bnds, voxel_size=voxel_size)
 
@@ -311,13 +337,10 @@ def tracked_matches(data_s, data_t, pair):
     mask = np.logical_and(mask_s, mask_t)
     filtered_pair = pair_np[mask]
 
-    table_s = dict(zip(data_s.origin_id.numpy(),
-                       np.arange(0, len(data_s.pos))))
-    table_t = dict(zip(data_t.origin_id.numpy(),
-                       np.arange(0, len(data_t.pos))))
+    table_s = dict(zip(data_s.origin_id.numpy(), np.arange(0, len(data_s.pos))))
+    table_t = dict(zip(data_t.origin_id.numpy(), np.arange(0, len(data_t.pos))))
     res = torch.tensor([[table_s[p[0]], table_t[p[1]]] for p in filtered_pair]).to(torch.long)
     return res
-
 
 
 def fps_sampling(pair_ind, pos, num_pos_pairs, ind=0):
@@ -332,7 +355,7 @@ def fps_sampling(pair_ind, pos, num_pos_pairs, ind=0):
     small_pos_source = pos[pair_ind[:, ind]]
     batch = torch.zeros(small_pos_source.shape[0]).long()
     ratio = float(num_pos_pairs) / len(pair_ind)
-    if(ratio <= 0 or ratio >= 1):
+    if ratio <= 0 or ratio >= 1:
         raise ValueError("ratio cannot have this value: {}".format(ratio))
     index = fps(small_pos_source, batch, ratio=ratio, random_start=False)
     return index

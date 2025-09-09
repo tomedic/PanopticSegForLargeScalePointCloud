@@ -17,9 +17,9 @@ log = logging.getLogger(__name__)
 
 class SemanticKitti(Dataset):
     r"""SemanticKITTI: A Dataset for Semantic Scene Understanding of LiDAR Sequences"
-    from the <https://arxiv.org/pdf/1904.01416.pdf> paper, 
+    from the <https://arxiv.org/pdf/1904.01416.pdf> paper,
     containing about 21 lidar scan sequences with dense point-wise annotations.
-    
+
     root dir should be structured as
     rootdir
         └── sequences/
@@ -106,7 +106,10 @@ class SemanticKitti(Dataset):
     @staticmethod
     def read_raw(scan_file, label_file=None):
         scan = np.fromfile(scan_file, dtype=np.float32).reshape(-1, 4)
-        data = Data(pos=torch.tensor(scan[:, :3]), x=torch.tensor(scan[:, 3]).reshape(-1, 1),)
+        data = Data(
+            pos=torch.tensor(scan[:, :3]),
+            x=torch.tensor(scan[:, 3]).reshape(-1, 1),
+        )
         if label_file:
             label = np.fromfile(label_file, dtype=np.uint32).astype(np.int32)
             assert scan.shape[0] == label.shape[0]
@@ -176,14 +179,13 @@ class SemanticKitti(Dataset):
                             .
                             .
                             .
-                          
+
                             └── 21/
                 """
             )
 
     def _remap_labels(self, semantic_label):
-        """ Remaps labels to [0 ; num_labels -1]. Can be overriden.
-        """
+        """Remaps labels to [0 ; num_labels -1]. Can be overriden."""
         new_labels = semantic_label.clone()
         for source, target in self.REMAPPING_MAP.items():
             mask = semantic_label == source
@@ -197,7 +199,7 @@ class SemanticKitti(Dataset):
 
 
 class SemanticKittiDataset(BaseDataset):
-    """ Wrapper around Semantic Kitti that creates train and test datasets.
+    """Wrapper around Semantic Kitti that creates train and test datasets.
     Parameters
     ----------
     dataset_opt: omegaconf.DictConfig
@@ -251,6 +253,7 @@ if __name__ == "__main__":
     DIR = os.path.dirname(os.path.realpath(__file__))
     dataroot = os.path.join(DIR, "..", "..", "data", "kitti")
     SemanticKitti(
-        dataroot, split="train", process_workers=10,
+        dataroot,
+        split="train",
+        process_workers=10,
     )
-

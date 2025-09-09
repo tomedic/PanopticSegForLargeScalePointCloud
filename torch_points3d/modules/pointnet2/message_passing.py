@@ -3,7 +3,7 @@ from torch_geometric.nn import PointConv
 from torch_points3d.core.base_conv.base_conv import *
 from torch_points3d.core.base_conv.message_passing import *
 from torch_points3d.core.common_modules.base_modules import *
-from torch_points3d.core.spatial_ops import FPSSampler, RandomSampler, MultiscaleRadiusNeighbourFinder
+from torch_points3d.core.spatial_ops import FPSSampler, MultiscaleRadiusNeighbourFinder
 
 
 class SAModule(BaseMSConvolutionDown):
@@ -12,7 +12,7 @@ class SAModule(BaseMSConvolutionDown):
             FPSSampler(ratio=ratio),
             MultiscaleRadiusNeighbourFinder(radius, max_num_neighbors=radius_num_point),
             *args,
-            **kwargs
+            **kwargs,
         )
 
         local_nn = MLP(down_conv_nn) if down_conv_nn is not None else None

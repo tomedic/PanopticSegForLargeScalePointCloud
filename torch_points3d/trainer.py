@@ -1,13 +1,11 @@
 import os
 import copy
 import torch
-torch.multiprocessing.set_sharing_strategy('file_system')
-import hydra
+
+torch.multiprocessing.set_sharing_strategy("file_system")
 import time
 import logging
 
-from tqdm.auto import tqdm
-import wandb
 import numpy as np
 import random
 
@@ -91,14 +89,14 @@ class Trainer:
             self._model: BaseModel = self._checkpoint.create_model(
                 self._dataset, weight_name=self._cfg.training.weight_name
             )
-            #train need
-            #self._model.instantiate_optimizers(self._cfg, "cuda" in device)
+            # train need
+            # self._model.instantiate_optimizers(self._cfg, "cuda" in device)
         else:
             self._dataset: BaseDataset = instantiate_dataset(self._cfg.data)
             self._model: BaseModel = instantiate_model(copy.deepcopy(self._cfg), self._dataset)
             self._model.instantiate_optimizers(self._cfg, "cuda" in device)
             self._model.set_pretrained_weights()
-            #if not self._checkpoint.validate(self._dataset.used_properties):
+            # if not self._checkpoint.validate(self._dataset.used_properties):
             #    log.warning(
             #        "The model will not be able to be used from pretrained weights without the corresponding dataset. Current properties are {}".format(
             #            self._dataset.used_properties
@@ -122,7 +120,7 @@ class Trainer:
         log.info(self._dataset)
 
         # Verify attributes in dataset
-        #self._model.verify_data(self._dataset.train_dataset[0])
+        # self._model.verify_data(self._dataset.train_dataset[0])
         if self._dataset.train_dataset:
             self._model.verify_data(self._dataset.train_dataset[0])
         else:
@@ -203,7 +201,7 @@ class Trainer:
                 t_data = time.time() - iter_data_time
                 iter_start_time = time.time()
                 self._model.set_input(data, self._device)
-                #self._model.optimize_parameters(epoch, self._dataset.batch_size)
+                # self._model.optimize_parameters(epoch, self._dataset.batch_size)
                 self._model.optimize_parameters2(epoch, i, self._dataset.batch_size)
                 if i % 50 == 0:
                     with torch.no_grad():
@@ -213,7 +211,7 @@ class Trainer:
                     **self._tracker.get_metrics(),
                     data_loading=float(t_data),
                     iteration=float(time.time() - iter_start_time),
-                    color=COLORS.TRAIN_COLOR
+                    color=COLORS.TRAIN_COLOR,
                 )
 
                 if self._visualizer.is_active:
@@ -258,7 +256,7 @@ class Trainer:
                         with torch.no_grad():
                             self._model.set_input(data, self._device)
                             with torch.cuda.amp.autocast(enabled=self._model.is_mixed_precision()):
-                                self._model.forward(epoch=epoch, is_training = self._is_training)
+                                self._model.forward(epoch=epoch, is_training=self._is_training)
                             self._tracker.track(self._model, data=data, **self.tracker_options)
                         tq_loader.set_postfix(**self._tracker.get_metrics(), color=COLORS.TEST_COLOR)
 

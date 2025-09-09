@@ -1,0 +1,11 @@
+name: binbin
+channels:
+  - conda-forge
+  - rapidsai
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.8
+  - hdbscan=0.8.27
+  - numpy-base=1.19.2
+prefix: /scratch/miniconda3/envs/binbin

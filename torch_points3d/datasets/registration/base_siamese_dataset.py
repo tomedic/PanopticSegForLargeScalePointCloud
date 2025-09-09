@@ -7,8 +7,6 @@ from torch_geometric.data import Data
 from torch_points_kernels.points_cpu import ball_query
 from functools import partial
 
-from torch_points3d.core.data_transform import MultiScaleTransform
-from torch_points3d.core.data_transform import PairTransform
 from torch_points3d.datasets.registration.pair import DensePairBatch
 from torch_points3d.utils.enums import ConvolutionFormat
 from torch_points3d.utils.config import ConvolutionFormatFactory
@@ -23,6 +21,7 @@ from torch_points3d.metrics.registration_tracker import PatchRegistrationTracker
 from torch_points3d.metrics.registration_tracker import FragmentRegistrationTracker
 
 log = logging.getLogger(__name__)
+
 
 class BaseSiameseDataset(BaseDataset):
     def __init__(self, dataset_opt):
@@ -83,7 +82,6 @@ class BaseSiameseDataset(BaseDataset):
 
 
 class GeneralFragment(object):
-
     """
     implementation of get_fragment and get_name to avoid repetitions
     """

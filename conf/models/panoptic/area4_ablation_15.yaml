@@ -63,8 +63,8 @@ PointGroup-PAPER:
   class: pointgroup.PointGroup
   conv_type: "SPARSE"
   scorer_type: "unet"
-  
-  use_score_net: True 
+
+  use_score_net: True
   mask_supervise: False
   use_mask_filter_score_feature: False
   use_mask_filter_score_feature_start_epoch: 50

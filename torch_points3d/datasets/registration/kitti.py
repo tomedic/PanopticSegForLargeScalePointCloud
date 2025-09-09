@@ -1,15 +1,10 @@
-import numpy as np
 import os
 import os.path as osp
-import torch
-from torch_geometric.data import Data
 
 from torch_points3d.datasets.registration.base_kitti import BaseKitti
-from torch_points3d.datasets.registration.utils import PatchExtractor
 
 
 # from torch_points3d.metrics.registration_tracker import PatchRegistrationTracker
-from torch_points3d.metrics.registration_tracker import FragmentRegistrationTracker
 
 from torch_points3d.datasets.registration.base_siamese_dataset import BaseSiameseDataset
 from torch_points3d.datasets.registration.base_siamese_dataset import GeneralFragment
@@ -20,30 +15,27 @@ class FragmentKitti(BaseKitti, GeneralFragment):
     Fragment from KITTI Odometry dataset
     """
 
-    def __init__(self, root,
-                 mode='train',
-                 self_supervised=False,
-                 min_size_block=0.3,
-                 max_size_block=2,
-                 max_dist_overlap=0.01,
-                 max_time_distance=3,
-                 min_dist=10,
-                 transform=None,
-                 pre_transform=None,
-                 pre_filter=None,
-                 is_online_matching=False,
-                 num_pos_pairs=1024,
-                 ss_transform=None,
-                 min_points=300):
-        BaseKitti.__init__(self,
-                           root,
-                           mode,
-                           max_dist_overlap,
-                           max_time_distance,
-                           min_dist,
-                           transform,
-                           pre_transform,
-                           pre_filter)
+    def __init__(
+        self,
+        root,
+        mode="train",
+        self_supervised=False,
+        min_size_block=0.3,
+        max_size_block=2,
+        max_dist_overlap=0.01,
+        max_time_distance=3,
+        min_dist=10,
+        transform=None,
+        pre_transform=None,
+        pre_filter=None,
+        is_online_matching=False,
+        num_pos_pairs=1024,
+        ss_transform=None,
+        min_points=300,
+    ):
+        BaseKitti.__init__(
+            self, root, mode, max_dist_overlap, max_time_distance, min_dist, transform, pre_transform, pre_filter
+        )
 
         self.path_match = osp.join(self.processed_dir, self.mode, "matches")
         self.list_fragment = [f for f in os.listdir(self.path_match) if "matches" in f]
@@ -96,7 +88,8 @@ class KittiDataset(BaseSiameseDataset):
             pre_filter=pre_filter,
             is_online_matching=dataset_opt.is_online_matching,
             num_pos_pairs=dataset_opt.num_pos_pairs,
-            min_points=dataset_opt.min_points)
+            min_points=dataset_opt.min_points,
+        )
 
         self.val_dataset = FragmentKitti(
             root=self._data_path,
@@ -109,7 +102,8 @@ class KittiDataset(BaseSiameseDataset):
             transform=test_transform,
             pre_filter=pre_filter,
             is_online_matching=dataset_opt.is_online_matching,
-            num_pos_pairs=dataset_opt.num_pos_pairs)
+            num_pos_pairs=dataset_opt.num_pos_pairs,
+        )
 
         self.test_dataset = FragmentKitti(
             root=self._data_path,
@@ -122,4 +116,5 @@ class KittiDataset(BaseSiameseDataset):
             transform=test_transform,
             pre_filter=pre_filter,
             is_online_matching=dataset_opt.is_online_matching,
-            num_pos_pairs=dataset_opt.num_pos_pairs)
+            num_pos_pairs=dataset_opt.num_pos_pairs,
+        )

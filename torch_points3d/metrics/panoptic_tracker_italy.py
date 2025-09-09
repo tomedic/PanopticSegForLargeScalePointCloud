@@ -11,7 +11,6 @@ from collections import OrderedDict, defaultdict
 from torch_points3d.metrics.confusion_matrix import ConfusionMatrix
 from torch_points3d.metrics.segmentation_tracker import SegmentationTracker
 from torch_points3d.metrics.base_tracker import BaseTracker, meter_value
-from torch_points3d.datasets.segmentation import IGNORE_LABEL
 from torch_points3d.core.data_transform import SaveOriginalPosId
 from torch_points3d.models import model_interface
 from torch_points3d.models.panoptic.structures import PanopticResults, PanopticLabels
@@ -19,6 +18,7 @@ from torch_points_kernels import instance_iou
 from .box_detection.ap import voc_ap
 
 log = logging.getLogger(__name__)
+
 
 class _Instance(NamedTuple):
     classname: str
@@ -61,7 +61,7 @@ class InstanceAPMeter:
             ngt += len(gts)
 
         # Start with most confident first
-        #preds.sort(key=lambda x: x.score, reverse=True)
+        # preds.sort(key=lambda x: x.score, reverse=True)
         tp = np.zeros(len(preds))
         fp = np.zeros(len(preds))
         for p, pred in enumerate(preds):
@@ -109,13 +109,23 @@ class InstanceAPMeter:
 
         return rec, prec, ap
 
+
 class MyPanopticTracker(SegmentationTracker):
-    """ Class that provides tracking of semantic segmentation as well as
-    instance segmentation """
+    """Class that provides tracking of semantic segmentation as well as
+    instance segmentation"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._metric_func = {**self._metric_func, "pos_embed": max, "neg_embed": min, "pos_offset": max, "neg_offset": max, "map_embed": max, "map_offset": max}
+        self._metric_func = {
+            **self._metric_func,
+            "pos_embed": max,
+            "neg_embed": min,
+            "pos_offset": max,
+            "neg_offset": max,
+            "map_embed": max,
+            "map_offset": max,
+        }
+
     def reset(self, *args, **kwargs):
         super().reset(*args, **kwargs)
         self._test_area = None
@@ -123,7 +133,7 @@ class MyPanopticTracker(SegmentationTracker):
         self._vote_miou = None
         self._full_confusion = None
         self._iou_per_class = {}
-        
+
         self._pos_embed = tnt.meter.AverageValueMeter()
         self._neg_embed = tnt.meter.AverageValueMeter()
         self._pos_offset = tnt.meter.AverageValueMeter()
@@ -139,46 +149,53 @@ class MyPanopticTracker(SegmentationTracker):
         self._rec2: Dict[str, float] = {}
         self._ap2: Dict[str, float] = {}
 
-    def track(self, model: model_interface.TrackerInterface, full_res=False, data=None, iou_threshold=0.25, track_instances=True, **kwargs):
-        """ Add current model predictions (usually the result of a batch) to the tracking
-        """
-        #super().track(model)
+    def track(
+        self,
+        model: model_interface.TrackerInterface,
+        full_res=False,
+        data=None,
+        iou_threshold=0.25,
+        track_instances=True,
+        **kwargs,
+    ):
+        """Add current model predictions (usually the result of a batch) to the tracking"""
+        # super().track(model)
         self._iou_threshold = iou_threshold
         BaseTracker.track(self, model)
         outputs: PanopticResults = model.get_output()
         labels: PanopticLabels = model.get_labels()
         # Track semantic
         super()._compute_metrics(outputs.semantic_logits, labels.y)
-        
+
         if not data:
             return
         assert data.pos.dim() == 2, "Only supports packed batches"
-        
+
         # Object accuracy
-        #print(outputs.embed_clusters)
-        #print(self._stage)
+        # print(outputs.embed_clusters)
+        # print(self._stage)
         if not outputs.embed_clusters:
             return
         predicted_labels = outputs.semantic_logits.max(1)[1]
-        #print(torch.max(labels.instance_labels))
-        if torch.max(labels.instance_labels)>0:
+        # print(torch.max(labels.instance_labels))
+        if torch.max(labels.instance_labels) > 0:
             tp, fp, acc = self._compute_acc(
                 outputs.embed_clusters, predicted_labels, labels, data.batch, labels.num_instances, iou_threshold
             )
             self._pos_embed.add(tp)
             self._neg_embed.add(fp)
             self._acc_meter_embed.add(acc)
-        
-        #if not outputs.offset_clusters:
-        #    return
-        
+
+            # if not outputs.offset_clusters:
+            #    return
+
             tp2, fp2, acc2 = self._compute_acc(
                 outputs.offset_clusters, predicted_labels, labels, data.batch, labels.num_instances, iou_threshold
             )
             self._pos_offset.add(tp2)
             self._neg_offset.add(fp2)
             self._acc_meter_offset.add(acc2)
-        
+
         # Track instances for AP
         if track_instances:
             pred_clusters_embed = self._pred_instances_per_scan(
@@ -194,7 +211,7 @@ class MyPanopticTracker(SegmentationTracker):
             self._scan_id_offset += data.batch[-1].item() + 1
             self._ap_meter_offset.add(pred_clusters_offset, gt_clusters)
             self._scan_id_offset2 += data.batch[-1].item() + 1
-        
+
         # Train mode or low res, nothing special to do
         if self._stage == "train" or not full_res:
             return
@@ -206,9 +223,11 @@ class MyPanopticTracker(SegmentationTracker):
                 if test_area_i.y is None:
                     raise ValueError("It seems that the test area data does not have labels (attribute y).")
                 self._test_area[i].prediction_count = torch.zeros(self._test_area[i].y.shape[0], dtype=torch.int)
-                self._test_area[i].votes = torch.zeros((self._test_area[i].y.shape[0], self._num_classes), dtype=torch.float)
-                self._test_area[i].ins_pre_embed = -1*torch.ones(self._test_area[i].y.shape[0], dtype=torch.int)
-                self._test_area[i].ins_pre_offset = -1*torch.ones(self._test_area[i].y.shape[0], dtype=torch.int)
+                self._test_area[i].votes = torch.zeros(
+                    (self._test_area[i].y.shape[0], self._num_classes), dtype=torch.float
+                )
+                self._test_area[i].ins_pre_embed = -1 * torch.ones(self._test_area[i].y.shape[0], dtype=torch.int)
+                self._test_area[i].ins_pre_offset = -1 * torch.ones(self._test_area[i].y.shape[0], dtype=torch.int)
                 self._test_area[i].max_instance_embed = 0
                 self._test_area[i].max_instance_offset = 0
             self._test_area.to(model.device)
@@ -219,7 +238,7 @@ class MyPanopticTracker(SegmentationTracker):
             raise ValueError("The inputs given to the model do not have a %s attribute." % SaveOriginalPosId.KEY)
 
         originids = inputs[:][SaveOriginalPosId.KEY]
-        #print(originids)
+        # print(originids)
         if originids.dim() == 2:
             originids = originids.flatten()
         if originids.max() >= self._test_area.pos.shape[0]:
@@ -228,73 +247,89 @@ class MyPanopticTracker(SegmentationTracker):
         # Set predictions
         self._test_area.votes[originids] += outputs.semantic_logits
         self._test_area.prediction_count[originids] += 1
-        #block merging for offsets and embedding features
-        self._test_area.ins_pre_embed, self._test_area.max_instance_embed = self.block_merging(originids.cpu().numpy(), outputs.embed_pre.cpu().numpy(), self._test_area.ins_pre_embed.cpu().numpy(), self._test_area.max_instance_embed, model.get_opt_mergeTh())
-        self._test_area.ins_pre_offset, self._test_area.max_instance_offset = self.block_merging(originids.cpu().numpy(), outputs.offset_pre.cpu().numpy(), self._test_area.ins_pre_offset.cpu().numpy(), self._test_area.max_instance_offset,  model.get_opt_mergeTh())
-         
-      	#return num_clusters, torch.from_numpy(labels)
+        # block merging for offsets and embedding features
+        self._test_area.ins_pre_embed, self._test_area.max_instance_embed = self.block_merging(
+            originids.cpu().numpy(),
+            outputs.embed_pre.cpu().numpy(),
+            self._test_area.ins_pre_embed.cpu().numpy(),
+            self._test_area.max_instance_embed,
+            model.get_opt_mergeTh(),
+        )
+        self._test_area.ins_pre_offset, self._test_area.max_instance_offset = self.block_merging(
+            originids.cpu().numpy(),
+            outputs.offset_pre.cpu().numpy(),
+            self._test_area.ins_pre_offset.cpu().numpy(),
+            self._test_area.max_instance_offset,
+            model.get_opt_mergeTh(),
+        )
+
+    # return num_clusters, torch.from_numpy(labels)
 
     def block_merging(self, originids, pre_ins, all_pre_ins, max_instance, th_merge):
-        t_num_clusters = np.max(pre_ins)+1
-        #print(np.unique(pre_ins))
-        #print(t_num_clusters)
-        #print("t_num_clusters: {}".format(t_num_clusters))
-        #print("max_instance: {}".format(max_instance))
-        #print("th_merge: {}".format(th_merge))
-        idx = np.argwhere(all_pre_ins[originids] != -1)  #has label
-        idx2 = np.argwhere(all_pre_ins[originids] == -1) #no label
+        t_num_clusters = np.max(pre_ins) + 1
+        # print(np.unique(pre_ins))
+        # print(t_num_clusters)
+        # print("t_num_clusters: {}".format(t_num_clusters))
+        # print("max_instance: {}".format(max_instance))
+        # print("th_merge: {}".format(th_merge))
+        idx = np.argwhere(all_pre_ins[originids] != -1)  # has label
+        idx2 = np.argwhere(all_pre_ins[originids] == -1)  # no label
 
-        #all points have no label
-        if len(idx)==0: #t_num_clusters>0:                         
-            all_pre_ins[originids] = pre_ins + max_instance                     
+        # all points have no label
+        if len(idx) == 0:  # t_num_clusters>0:
+            all_pre_ins[originids] = pre_ins + max_instance
             max_instance = max_instance + t_num_clusters
-            #print("test")
-            #return torch.from_numpy(all_pre_ins), max_instance
-        #all points have labels
-        elif len(idx2)==0: 
-            return  torch.from_numpy(all_pre_ins), max_instance
-        #part of points have labels
-        else:                       
-            #merge by iou
-            new_label = pre_ins.reshape(-1)  
-                
-            for ii_idx in range(t_num_clusters):   
-                new_label_ii_idx = originids[np.argwhere(new_label==ii_idx).reshape(-1)]
-                    
-                new_has_old_idx = new_label_ii_idx[np.argwhere(all_pre_ins[new_label_ii_idx]!=-1)]  #new prediction already has old label
-                new_not_old_idx = new_label_ii_idx[np.argwhere(all_pre_ins[new_label_ii_idx]==-1)] #new prediction has no old label  
-                #print(new_has_old_idx)
-                #print(len(new_label_ii_idx))  
-                #print(len(new_has_old_idx))     
-                #print(len(new_not_old_idx))  
-                if len(new_has_old_idx)==0:
-                    all_pre_ins[new_not_old_idx] = max_instance+1
-                    max_instance = max_instance+1
-                elif len(new_not_old_idx)==0: 
+            # print("test")
+            # return torch.from_numpy(all_pre_ins), max_instance
+        # all points have labels
+        elif len(idx2) == 0:
+            return torch.from_numpy(all_pre_ins), max_instance
+        # part of points have labels
+        else:
+            # merge by iou
+            new_label = pre_ins.reshape(-1)
+
+            for ii_idx in range(t_num_clusters):
+                new_label_ii_idx = originids[np.argwhere(new_label == ii_idx).reshape(-1)]
+
+                new_has_old_idx = new_label_ii_idx[
+                    np.argwhere(all_pre_ins[new_label_ii_idx] != -1)
+                ]  # new prediction already has old label
+                new_not_old_idx = new_label_ii_idx[
+                    np.argwhere(all_pre_ins[new_label_ii_idx] == -1)
+                ]  # new prediction has no old label
+                # print(new_has_old_idx)
+                # print(len(new_label_ii_idx))
+                # print(len(new_has_old_idx))
+                # print(len(new_not_old_idx))
+                if len(new_has_old_idx) == 0:
+                    all_pre_ins[new_not_old_idx] = max_instance + 1
+                    max_instance = max_instance + 1
+                elif len(new_not_old_idx) == 0:
                     continue
                 else:
                     old_labels_ii = all_pre_ins[new_has_old_idx]
                     un = np.unique(old_labels_ii)
-                    #print(un)
+                    # print(un)
                     max_iou_ii = 0
                     max_iou_ii_oldlabel = 0
                     for ig, g in enumerate(un):
-                        idx_old_all = originids[np.argwhere(all_pre_ins[originids]==g).reshape(-1)]
+                        idx_old_all = originids[np.argwhere(all_pre_ins[originids] == g).reshape(-1)]
                         union_label_idx = np.union1d(idx_old_all, new_label_ii_idx)
                         inter_label_idx = np.intersect1d(idx_old_all, new_label_ii_idx)
-                        #print(inter_label_idx.size)
+                        # print(inter_label_idx.size)
                         iou = float(inter_label_idx.size) / float(union_label_idx.size)
-                        #print(iou)
+                        # print(iou)
                         if iou > max_iou_ii:
                             max_iou_ii = iou
                             max_iou_ii_oldlabel = g
-                            
+
                     if max_iou_ii > th_merge:
                         all_pre_ins[new_not_old_idx] = max_iou_ii_oldlabel
                     else:
-                        all_pre_ins[new_not_old_idx] = max_instance+1
-                        max_instance = max_instance+1
-                        
+                        all_pre_ins[new_not_old_idx] = max_instance + 1
+                        max_instance = max_instance + 1
+
         return torch.from_numpy(all_pre_ins), max_instance
 
     def finalise(self, full_res=False, vote_miou=True, ply_output="", track_instances=True, **kwargs):
@@ -317,68 +352,72 @@ class MyPanopticTracker(SegmentationTracker):
 
         if ply_output:
             has_prediction = self._test_area.prediction_count > 0
-            #semantic prediction with color for subsampled cloud
-            '''self._dataset.to_ply(
+            # semantic prediction with color for subsampled cloud
+            """self._dataset.to_ply(
                 self._test_area.pos[has_prediction].cpu(),
                 torch.argmax(self._test_area.votes[has_prediction], 1).cpu().numpy(),
                 ply_output,
-            )'''
-            
-            #self._test_area = self._test_area.to("cpu")
+            )"""
+
+            # self._test_area = self._test_area.to("cpu")
             full_pred = knn_interpolate(
-            self._test_area.votes[has_prediction], self._test_area.pos[has_prediction], self._test_area.pos, k=1,
+                self._test_area.votes[has_prediction],
+                self._test_area.pos[has_prediction],
+                self._test_area.pos,
+                k=1,
             )
-            #semantic prediction with color for full cloud
-            '''self._dataset.to_ply(
+            # semantic prediction with color for full cloud
+            """self._dataset.to_ply(
                 self._test_area.pos,
                 torch.argmax(full_pred, 1).numpy(),
                 "vote1regularfull.ply",
-            )'''
-            #semantic prediction and GT label full cloud (for final evaluation)
+            )"""
+            # semantic prediction and GT label full cloud (for final evaluation)
             self._dataset.to_eval_ply(
                 self._test_area.pos,
-                torch.argmax(full_pred, 1).numpy(), #[0, ..]
-                self._test_area.y,   #[-1, ...]
+                torch.argmax(full_pred, 1).numpy(),  # [0, ..]
+                self._test_area.y,  # [-1, ...]
                 "Semantic_results_forEval.ply",
             )
-            
-            #instance
-            has_prediction = self._test_area.ins_pre_embed != -1
-            #full_ins_pred_embed = knn_interpolate(
-            #torch.reshape(self._test_area.ins_pre_embed[has_prediction], (-1,1)), self._test_area.pos[has_prediction], self._test_area.pos, k=1,
-            #)
-            assign_index  = knn(self._test_area.pos[has_prediction], self._test_area.pos, k=1)
 
-            #assign_index2  = nearest(self._test_area.pos, self._test_area.pos[has_prediction])
+            # instance
+            has_prediction = self._test_area.ins_pre_embed != -1
+            # full_ins_pred_embed = knn_interpolate(
+            # torch.reshape(self._test_area.ins_pre_embed[has_prediction], (-1,1)), self._test_area.pos[has_prediction], self._test_area.pos, k=1,
+            # )
+            assign_index = knn(self._test_area.pos[has_prediction], self._test_area.pos, k=1)
+
+            # assign_index2  = nearest(self._test_area.pos, self._test_area.pos[has_prediction])
 
             y_idx, x_idx = assign_index
             full_ins_pred_embed = self._test_area.ins_pre_embed[has_prediction][x_idx]
 
-            #full_ins_pred_embed2 = self._test_area.ins_pre_embed[has_prediction][assign_index2]
+            # full_ins_pred_embed2 = self._test_area.ins_pre_embed[has_prediction][assign_index2]
 
-            
             has_prediction = self._test_area.ins_pre_offset != -1
-            #full_ins_pred_offset = knn_interpolate(
-            #torch.reshape(self._test_area.ins_pre_offset[has_prediction], (-1,1)), self._test_area.pos[has_prediction], self._test_area.pos, k=1,
-            #)
-            assign_index  = knn(self._test_area.pos[has_prediction], self._test_area.pos, k=1)
+            # full_ins_pred_offset = knn_interpolate(
+            # torch.reshape(self._test_area.ins_pre_offset[has_prediction], (-1,1)), self._test_area.pos[has_prediction], self._test_area.pos, k=1,
+            # )
+            assign_index = knn(self._test_area.pos[has_prediction], self._test_area.pos, k=1)
             y_idx, x_idx = assign_index
             full_ins_pred_offset = self._test_area.ins_pre_offset[has_prediction][x_idx]
             full_ins_pred_embed = torch.reshape(full_ins_pred_embed, (-1,))
             full_ins_pred_offset = torch.reshape(full_ins_pred_offset, (-1,))
-            #instance prediction and GT label full cloud (for final evaluation)
-            
-            idx_in_cur = [idx for idx, l in enumerate(torch.argmax(full_pred, 1).numpy()) if l in self._dataset.stuff_classes]
+            # instance prediction and GT label full cloud (for final evaluation)
+
+            idx_in_cur = [
+                idx for idx, l in enumerate(torch.argmax(full_pred, 1).numpy()) if l in self._dataset.stuff_classes
+            ]
             idx_in_cur = np.array(idx_in_cur)
             idx_in_cur.astype(int)
-            
+
             full_ins_pred_embed[idx_in_cur] = -1
             full_ins_pred_offset[idx_in_cur] = -1
 
             self._dataset.to_eval_ply(
                 self._test_area.pos,
-                full_ins_pred_embed.numpy(),  #[-1, ...]
-                self._test_area.instance_labels,  #[0, ..]
+                full_ins_pred_embed.numpy(),  # [-1, ...]
+                self._test_area.instance_labels,  # [0, ..]
                 "Instance_Embed_results_forEval.ply",
             )
             self._dataset.to_eval_ply(
@@ -387,7 +426,7 @@ class MyPanopticTracker(SegmentationTracker):
                 self._test_area.instance_labels,
                 "Instance_Offset_results_forEval.ply",
             )
-            #instance prediction with color for "things"
+            # instance prediction with color for "things"
             things_idx_embed = full_ins_pred_embed != -1
             self._dataset.to_ins_ply(
                 self._test_area.pos[things_idx_embed],
@@ -400,7 +439,7 @@ class MyPanopticTracker(SegmentationTracker):
                 full_ins_pred_offset[things_idx_offset].numpy(),
                 "Instance_Offset_results_withColor.ply",
             )
-            
+
         if not track_instances:
             return
 
@@ -422,11 +461,10 @@ class MyPanopticTracker(SegmentationTracker):
             except TypeError:
                 value = val
             self._rec2[key] = value
-            
+
     @staticmethod
     def _compute_acc(clusters, predicted_labels, labels, batch, num_instances, iou_threshold):
-        """ Computes the ratio of True positives, False positives and accuracy
-        """
+        """Computes the ratio of True positives, False positives and accuracy"""
         iou_values, gt_ids = instance_iou(clusters, labels.instance_labels, batch).max(1)
         gt_ids += 1
         instance_offsets = torch.cat((torch.tensor([0]).to(num_instances.device), num_instances.cumsum(-1)))
@@ -470,13 +508,18 @@ class MyPanopticTracker(SegmentationTracker):
 
         # Full res interpolation
         full_pred = knn_interpolate(
-            self._test_area.votes[has_prediction], self._test_area.pos[has_prediction], self._test_area.pos, k=1,
+            self._test_area.votes[has_prediction],
+            self._test_area.pos[has_prediction],
+            self._test_area.pos,
+            k=1,
         )
 
         # Full res pred
         self._full_confusion = ConfusionMatrix(self._num_classes)
         gt_effect = self._test_area.y >= 0
-        self._full_confusion.count_predicted_batch(self._test_area.y[gt_effect].numpy(), torch.argmax(full_pred, 1)[gt_effect].numpy())
+        self._full_confusion.count_predicted_batch(
+            self._test_area.y[gt_effect].numpy(), torch.argmax(full_pred, 1)[gt_effect].numpy()
+        )
         self._full_vote_miou = self._full_confusion.get_average_intersection_union() * 100
 
     @property
@@ -496,11 +539,7 @@ class MyPanopticTracker(SegmentationTracker):
             sample_idx = batch[cl[0]].item()
             scan_id = sample_idx + scan_id_offset
             indices = cl.cpu().numpy() - offsets[sample_idx]
-            instances.append(
-                _Instance(
-                    classname=predicted_labels[cl[0]].item(), indices=indices, scan_id=scan_id
-                )
-            )
+            instances.append(_Instance(classname=predicted_labels[cl[0]].item(), indices=indices, scan_id=scan_id))
         return instances
 
     @staticmethod
@@ -525,18 +564,17 @@ class MyPanopticTracker(SegmentationTracker):
         return instances
 
     def get_metrics(self, verbose=False) -> Dict[str, Any]:
-        """ Returns a dictionnary of all metrics and losses being tracked
-        """
+        """Returns a dictionnary of all metrics and losses being tracked"""
         metrics = super().get_metrics(verbose)
-        
+
         metrics["{}_pos_embed".format(self._stage)] = meter_value(self._pos_embed)
         metrics["{}_neg_embed".format(self._stage)] = meter_value(self._neg_embed)
         metrics["{}_Iacc_embed".format(self._stage)] = meter_value(self._acc_meter_embed)
-        
+
         metrics["{}_pos_offset".format(self._stage)] = meter_value(self._pos_offset)
         metrics["{}_neg_offset".format(self._stage)] = meter_value(self._neg_offset)
         metrics["{}_Iacc_offset".format(self._stage)] = meter_value(self._acc_meter_offset)
-        
+
         if self._has_instance_data:
             mAP1 = sum(self._ap.values()) / len(self._ap)
             metrics["{}_map_embed".format(self._stage)] = mAP1
@@ -548,7 +586,7 @@ class MyPanopticTracker(SegmentationTracker):
             if self._vote_miou:
                 metrics["{}_full_vote_miou".format(self._stage)] = self._full_vote_miou
                 metrics["{}_vote_miou".format(self._stage)] = self._vote_miou
-    
+
         if verbose and self._has_instance_data:
             metrics["{}_class_rec_embed".format(self._stage)] = self._dict_to_str(self._rec)
             metrics["{}_class_ap_embed".format(self._stage)] = self._dict_to_str(self._ap)

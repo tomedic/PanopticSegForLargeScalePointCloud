@@ -1,9 +1,8 @@
-import numpy as np
 import torch
 
 
 class BoxData:
-    """ Basic data structure to hold a box prediction or ground truth
+    """Basic data structure to hold a box prediction or ground truth
     if an score is provided then it will be treated as a prediction. Else, it is a ground truth box
     """
 

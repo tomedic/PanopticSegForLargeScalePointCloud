@@ -21,7 +21,7 @@ class Checkpoint:
     _LATEST = "latest"
 
     def __init__(self, checkpoint_file: str, save_every_iter: bool = True):
-        """ Checkpoint manager. Saves to working directory with check_name
+        """Checkpoint manager. Saves to working directory with check_name
         Arguments
             checkpoint_file {str} -- Path to the checkpoint
             save_every_iter {bool} -- [description] (default: {True})
@@ -36,8 +36,7 @@ class Checkpoint:
         self.dataset_properties: Dict = {}
 
     def save_objects(self, models_to_save: Dict[str, Any], stage, current_stat, optimizer, schedulers, **kwargs):
-        """ Saves checkpoint with updated mdoels for the given stage
-        """
+        """Saves checkpoint with updated mdoels for the given stage"""
         self.models = models_to_save
         self.optimizer = (optimizer.__class__.__name__, optimizer.state_dict())
         self.schedulers = {
@@ -57,7 +56,7 @@ class Checkpoint:
 
     @staticmethod
     def load(checkpoint_dir: str, checkpoint_name: str, run_config: Any, strict=False, resume=True):
-        """ Creates a new checkpoint object in the current working directory by loading the
+        """Creates a new checkpoint object in the current working directory by loading the
         checkpoint located at [checkpointdir]/[checkpoint_name].pt
         """
         checkpoint_file = os.path.join(checkpoint_dir, checkpoint_name) + ".pt"
@@ -80,16 +79,16 @@ class Checkpoint:
                     checkpoint_file, chkp_name
                 )  # Copy checkpoint to new run directory to make sure we don't override
             ckp = Checkpoint(chkp_name)
-            #ckp.run_config = run_config
+            # ckp.run_config = run_config
             log.info("Loading checkpoint from {}".format(checkpoint_file))
             objects = torch.load(checkpoint_file, map_location="cpu")
             for key, value in objects.items():
                 setattr(ckp, key, value)
-                
-            #during training, uncomment the following line
-            #ckp.run_config['models']['PointGroup-PAPER']['cluster_type'] = run_config['models']['PointGroup-PAPER']['cluster_type']
-            #ckp.run_config['epochs'] = run_config['epochs']
-            #ckp.run_config['training']['epochs'] = run_config['training']['epochs']
+
+            # during training, uncomment the following line
+            # ckp.run_config['models']['PointGroup-PAPER']['cluster_type'] = run_config['models']['PointGroup-PAPER']['cluster_type']
+            # ckp.run_config['epochs'] = run_config['epochs']
+            # ckp.run_config['training']['epochs'] = run_config['training']['epochs']
             ckp._filled = True
         return ckp
 
@@ -148,7 +147,7 @@ class Checkpoint:
 
 
 class ModelCheckpoint(object):
-    """ Create a checkpoint for a given model
+    """Create a checkpoint for a given model
 
     Argumemnts:
         - load_dir: directory where to load the checkpoint from (if exists)
@@ -171,7 +170,7 @@ class ModelCheckpoint(object):
         # Conversion of run_config to save a dictionary and not a pickle of omegaconf
         rc = OmegaConf.to_container(copy.deepcopy(run_config))
         self._checkpoint = Checkpoint.load(load_dir, check_name, run_config=rc, strict=strict, resume=resume)
-        self._checkpoint.run_config['data']['fold'] = run_config.data.fold
+        self._checkpoint.run_config["data"]["fold"] = run_config.data.fold
         self._resume = resume
         self._selection_stage = selection_stage
 
@@ -313,8 +312,8 @@ class ModelCheckpoint(object):
         self._checkpoint.save_objects(models_to_save, stage, current_stat, model.optimizer, model.schedulers, **kwargs)
 
     def validate(self, dataset_config):
-        """ A checkpoint is considered as valid if it can recreate the model from
-        a dataset config only """
+        """A checkpoint is considered as valid if it can recreate the model from
+        a dataset config only"""
         if dataset_config is not None:
             for k, v in dataset_config.items():
                 self.data_config[k] = v

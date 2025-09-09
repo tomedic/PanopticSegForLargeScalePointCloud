@@ -1,17 +1,13 @@
 from typing import List
 import itertools
 import numpy as np
-import math
-import re
 import torch
 import random
 from tqdm.auto import tqdm as tq
 from sklearn.neighbors import KDTree
 from functools import partial
 from torch.nn import functional as F
-from torch_geometric.nn.pool.pool import pool_pos, pool_batch
 from torch_geometric.data import Data, Batch
-from torch_scatter import scatter_add, scatter_mean
 from torch_geometric.transforms import FixedPoints as FP
 from torch_points_kernels.points_cpu import ball_query
 import numba
@@ -19,9 +15,8 @@ import numba
 from torch_points3d.datasets.multiscale_data import MultiScaleData
 from torch_points3d.datasets.registration.pair import Pair
 from torch_points3d.utils.transform_utils import SamplingStrategy
-from torch_points3d.utils.config import is_list
 from torch_points3d.utils import is_iterable
-from .grid_transform import group_data, GridSampling3D, shuffle_data, GridSampling3D_PCA
+from .grid_transform import GridSampling3D, shuffle_data, GridSampling3D_PCA
 from .features import Random3AxisRotation
 
 
@@ -57,7 +52,6 @@ class RemoveAttributes(object):
 
 
 class PointCloudFusion(object):
-
     """This transform is responsible to perform a point cloud fusion from a list of data
 
     - If a list of data is provided -> Create one Batch object with all data
@@ -109,7 +103,7 @@ class GridSphereSampling(object):
     def __init__(self, radius, grid_size=None, delattr_kd_tree=True, center=True):
         self._radius = eval(radius) if isinstance(radius, str) else float(radius)
         self.grid_size = eval(grid_size) if isinstance(grid_size, str) else float(grid_size)
-        #self.grid_size = self.grid_size*1.4
+        # self.grid_size = self.grid_size*1.4
         self._grid_sampling = GridSampling3D(size=self.grid_size if self.grid_size else self._radius)
         self._delattr_kd_tree = delattr_kd_tree
         self._center = center
@@ -127,9 +121,9 @@ class GridSphereSampling(object):
 
         # apply grid sampling
         grid_data = self._grid_sampling(data.clone())
-        
-        #PCA to find the minimum bounding box of the whole point cloud
-        '''pca = PCA(n_components=3)
+
+        # PCA to find the minimum bounding box of the whole point cloud
+        """pca = PCA(n_components=3)
         pca.fit(data.pos.numpy())
         #data_reduced = data.pos.numpy().copy()
         data_reduced = np.dot(data.pos.numpy() - pca.mean_, pca.components_.T) # transform
@@ -142,16 +136,16 @@ class GridSphereSampling(object):
 
 
         sortedArr=[]
-        #Slide spherical bounding box 
+        #Slide spherical bounding box
         for c_x in np.arange(minx, maxx+self.grid_size, self.grid_size):
             for c_y in np.arange(miny, maxy+self.grid_size, self.grid_size):
                 for c_z in np.arange(minz, maxz+self.grid_size, self.grid_size):
-                    pick_pca = pca.inverse_transform(np.vstack((c_x, c_y, c_z)).T) 
+                    pick_pca = pca.inverse_transform(np.vstack((c_x, c_y, c_z)).T)
                     sortedArr.append(pick_pca)
-        sortedArr = np.stack(sortedArr).squeeze()'''
+        sortedArr = np.stack(sortedArr).squeeze()"""
 
         datas = []
-        for grid_center in np.asarray(grid_data.pos):  #sortedArr: 
+        for grid_center in np.asarray(grid_data.pos):  # sortedArr:
             pts = np.asarray(grid_center)[np.newaxis]
 
             # Find closest point within the original data
@@ -163,7 +157,7 @@ class GridSphereSampling(object):
             sampler = SphereSampling(self._radius, grid_center, align_origin=self._center)
             new_data = sampler(data)
             new_data.center_label = grid_label
-            if len(new_data.pos)>0:
+            if len(new_data.pos) > 0:
                 datas.append(new_data)
         return datas
 
@@ -178,7 +172,10 @@ class GridSphereSampling(object):
     def __repr__(self):
         return "{}(radius={}, center={})".format(self.__class__.__name__, self._radius, self._center)
 
+
 from sklearn.decomposition import PCA
+
+
 class GridCylinderSampling(object):
     """Fits the point cloud to a grid and for each point in this grid,
     create a cylinder with a radius r
@@ -201,7 +198,7 @@ class GridCylinderSampling(object):
         self._radius = eval(radius) if isinstance(radius, str) else float(radius)
         self.grid_size = eval(grid_size) if isinstance(grid_size, str) else float(grid_size)
         self._grid_sampling = GridSampling3D_PCA(size=self.grid_size if self.grid_size else self._radius)
-        #self._grid_sampling = GridSampling3D(size=grid_size if grid_size else self._radius)
+        # self._grid_sampling = GridSampling3D(size=grid_size if grid_size else self._radius)
         self._delattr_kd_tree = delattr_kd_tree
         self._center = center
 
@@ -216,30 +213,30 @@ class GridCylinderSampling(object):
         if hasattr(data, self.KDTREE_KEY) and self._delattr_kd_tree:
             delattr(data, self.KDTREE_KEY)
 
-        #PCA to find the minimum bounding box of the whole point cloud
+        # PCA to find the minimum bounding box of the whole point cloud
         pca = PCA(n_components=2)
-        pca.fit(data.pos.numpy()[:,0:-1])
+        pca.fit(data.pos.numpy()[:, 0:-1])
         data_reduced = data.pos.numpy().copy()
-        data_reduced[:,0:-1] = np.dot(data.pos.numpy()[:,0:-1] - pca.mean_, pca.components_.T) # transform
-        minx = np.min(data_reduced[:,0])
-        miny = np.min(data_reduced[:,1])
-        maxx = np.max(data_reduced[:,0])
-        maxy = np.max(data_reduced[:,1])
+        data_reduced[:, 0:-1] = np.dot(data.pos.numpy()[:, 0:-1] - pca.mean_, pca.components_.T)  # transform
+        minx = np.min(data_reduced[:, 0])
+        miny = np.min(data_reduced[:, 1])
+        maxx = np.max(data_reduced[:, 0])
+        maxy = np.max(data_reduced[:, 1])
 
-        sortedArr=[]
-        #Slide spherical bounding box 
-        for c_x in np.arange(minx, maxx+self.grid_size, self.grid_size):
-            for c_y in np.arange(miny, maxy+self.grid_size, self.grid_size):
-                pick_pca = pca.inverse_transform(np.vstack((c_x, c_y)).T) 
+        sortedArr = []
+        # Slide spherical bounding box
+        for c_x in np.arange(minx, maxx + self.grid_size, self.grid_size):
+            for c_y in np.arange(miny, maxy + self.grid_size, self.grid_size):
+                pick_pca = pca.inverse_transform(np.vstack((c_x, c_y)).T)
                 sortedArr.append(pick_pca)
         sortedArr = np.stack(sortedArr).squeeze()
         # apply grid sampling
-        #grid_data = self._grid_sampling(data.clone())
+        # grid_data = self._grid_sampling(data.clone())
 
         datas = []
-        #centerpoints = np.unique(grid_data.pos[:, :-1], axis=0)
-        #sortedArr = centerpoints[centerpoints[:,1].argsort()]
-        for grid_center in sortedArr: #np.unique(grid_data.pos[:, :-1], axis=0):
+        # centerpoints = np.unique(grid_data.pos[:, :-1], axis=0)
+        # sortedArr = centerpoints[centerpoints[:,1].argsort()]
+        for grid_center in sortedArr:  # np.unique(grid_data.pos[:, :-1], axis=0):
             pts = np.asarray(grid_center)[np.newaxis]
 
             # Find closest point within the original data
@@ -251,7 +248,7 @@ class GridCylinderSampling(object):
             sampler = CylinderSampling(self._radius, grid_center, align_origin=self._center)
             new_data = sampler(data)
             new_data.center_label = grid_label
-            if len(new_data.pos)>0:
+            if len(new_data.pos) > 0:
                 datas.append(new_data)
         return datas
 
@@ -334,7 +331,7 @@ class RandomSphere(object):
 
 
 class SphereSampling:
-    """ Samples points within a sphere
+    """Samples points within a sphere
 
     Parameters
     ----------
@@ -386,7 +383,7 @@ class SphereSampling:
 
 
 class CylinderSampling:
-    """ Samples points within a cylinder
+    """Samples points within a cylinder
 
     Parameters
     ----------
@@ -441,7 +438,7 @@ class CylinderSampling:
 
 
 class Select:
-    """ Selects given points from a data object
+    """Selects given points from a data object
 
     Parameters
     ----------
@@ -468,9 +465,7 @@ class Select:
 
 
 class CylinderNormalizeScale(object):
-    """ Normalize points within a cylinder
-
-    """
+    """Normalize points within a cylinder"""
 
     def __init__(self, normalize_z=True):
         self._normalize_z = normalize_z
@@ -496,7 +491,7 @@ class CylinderNormalizeScale(object):
 
 
 class RandomSymmetry(object):
-    """ Apply a random symmetry transformation on the data
+    """Apply a random symmetry transformation on the data
 
     Parameters
     ----------
@@ -521,7 +516,7 @@ class RandomSymmetry(object):
 
 
 class RandomNoise(object):
-    """ Simple isotropic additive gaussian noise (Jitter)
+    """Simple isotropic additive gaussian noise (Jitter)
 
     Parameters
     ----------
@@ -599,8 +594,7 @@ class RandomScaleAnisotropic:
 
 
 class MeshToNormal(object):
-    """ Computes mesh normals (IN PROGRESS)
-    """
+    """Computes mesh normals (IN PROGRESS)"""
 
     def __init__(self):
         pass
@@ -620,7 +614,7 @@ class MeshToNormal(object):
 
 
 class MultiScaleTransform(object):
-    """ Pre-computes a sequence of downsampling / neighboorhood search on the CPU.
+    """Pre-computes a sequence of downsampling / neighboorhood search on the CPU.
     This currently only works on PARTIAL_DENSE formats
 
     Parameters
@@ -698,8 +692,7 @@ class MultiScaleTransform(object):
 
 
 class ShuffleData(object):
-    """ This transform allow to shuffle feature, pos and label tensors within data
-    """
+    """This transform allow to shuffle feature, pos and label tensors within data"""
 
     def _process(self, data):
         return shuffle_data(data)
@@ -732,7 +725,7 @@ class PairTransform(object):
 
 
 class ShiftVoxels:
-    """ Trick to make Sparse conv invariant to even and odds coordinates
+    """Trick to make Sparse conv invariant to even and odds coordinates
     https://github.com/chrischoy/SpatioTemporalSegmentation/blob/master/lib/train.py#L78
 
     Parameters
@@ -759,7 +752,7 @@ class ShiftVoxels:
 
 
 class RandomDropout:
-    """ Randomly drop points from the input data
+    """Randomly drop points from the input data
 
     Parameters
     ----------
@@ -1015,9 +1008,7 @@ class CubeCrop(object):
 
 
 class EllipsoidCrop(object):
-    """
-
-    """
+    """ """
 
     def __init__(
         self, a: float = 1, b: float = 1, c: float = 1, rot_x: float = 180, rot_y: float = 180, rot_z: float = 180
@@ -1037,9 +1028,9 @@ class EllipsoidCrop(object):
 
 
         """
-        self._a2 = a ** 2
-        self._b2 = b ** 2
-        self._c2 = c ** 2
+        self._a2 = a**2
+        self._b2 = b**2
+        self._c2 = c**2
         self.random_rotation = Random3AxisRotation(rot_x=rot_x, rot_y=rot_y, rot_z=rot_z)
 
     def _compute_mask(self, pos: torch.Tensor):
@@ -1116,7 +1107,7 @@ class IrregularSampling(object):
 
         d_p = (torch.abs(data.pos - center) ** self.p).sum(1)
 
-        sigma_2 = (self.d_half ** self.p) / (2 * np.log(2))
+        sigma_2 = (self.d_half**self.p) / (2 * np.log(2))
         thresh = torch.exp(-d_p / (2 * sigma_2))
 
         mask = torch.rand(len(data.pos)) < thresh
@@ -1155,4 +1146,3 @@ class PeriodicSampling(object):
         return "{}(pulse={}, thresh={}, box_mullti={}, skip_keys={})".format(
             self.__class__.__name__, self.pulse, self.thresh, self.box_multiplier, self.skip_keys
         )
-

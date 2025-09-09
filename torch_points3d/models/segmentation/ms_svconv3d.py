@@ -2,12 +2,10 @@ import logging
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-import torchsparse as TS
 
 
 from torch_points3d.models.base_model import BaseModel
 from torch_points3d.datasets.segmentation import IGNORE_LABEL
-from torch_points3d.applications.sparseconv3d import SparseConv3d
 
 from torch_points3d.core.common_modules import FastBatchNorm1d, Seq
 from torch_points3d.models.registration.ms_svconv3d import UnetMSparseConv3d

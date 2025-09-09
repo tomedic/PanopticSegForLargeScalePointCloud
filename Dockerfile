@@ -52,7 +52,7 @@ ENV CU_VERSION=cu111
 # ENV TORCH_CUDA_ARCH_LIST_VER="6.0+PTX"
 
 # optimized for the Tesla A10's architecture below
-# ENV TORCH_CUDA_ARCH_LIST_VER="8.6+PTX" 
+# ENV TORCH_CUDA_ARCH_LIST_VER="8.6+PTX"
 ENV TORCH_CUDA_ARCH_LIST_VER="6.0;7.0;7.5;8.0;8.6"
 
 
@@ -77,7 +77,7 @@ RUN TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST_VER} python3.8 -m pip install --
 RUN TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST_VER} FORCE_CUDA=1 python3.8 -m pip install --no-cache-dir \
     git+https://github.com/mit-han-lab/torchsparse.git@v1.4.0
 
-                                              
+
 # torch-points3d requirements
 RUN TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST_VER} FORCE_CUDA=1 python3.8 -m pip install --no-cache-dir \
     torch-points-kernels==0.7.0 \
@@ -216,7 +216,7 @@ RUN TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST_VER} FORCE_CUDA=1 python3.8 -m p
     websocket-client==1.2.1 \
     werkzeug==2.0.1 \
     widgetsnbextension==3.5.1 \
-    zipp==3.5.0 
+    zipp==3.5.0
     # hdbscan==0.8.29
 
 

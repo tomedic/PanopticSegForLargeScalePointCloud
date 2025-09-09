@@ -11,7 +11,6 @@ import logging
 from omegaconf import OmegaConf
 import os
 import sys
-import pandas as pd
 import time
 
 
@@ -19,24 +18,16 @@ DIR = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.join(DIR, "..", "..")
 sys.path.insert(0, ROOT)
 
-from torch_points3d.models.model_factory import instantiate_model
-from torch_points3d.datasets.dataset_factory import instantiate_dataset, get_dataset_class
+from torch_points3d.datasets.dataset_factory import instantiate_dataset
 from torch_points3d.models.base_model import BaseModel
 from torch_points3d.datasets.base_dataset import BaseDataset
 
 from torch_points3d.utils.registration import (
     estimate_transfo,
     teaser_pp_registration,
-    fast_global_registration,
     get_matches,
 )
-from torch_points3d.metrics.registration_metrics import (
-    compute_hit_ratio,
-    compute_transfo_error,
-    compute_scaled_registration_error,
-)
 
-from torch_points3d.metrics.colored_tqdm import Coloredtqdm as Ctq
 from torch_points3d.metrics.model_checkpoint import ModelCheckpoint
 
 log = logging.getLogger(__name__)
@@ -117,7 +108,11 @@ def match_visualizer(pcd1, keypoints1, pcd2, keypoints2, inliers, t=2, radius=0.
 def run(model: BaseModel, dataset: BaseDataset, device, cfg):
     print(time.strftime("%Y%m%d-%H%M%S"))
     dataset.create_dataloaders(
-        model, 1, False, cfg.training.num_workers, False,
+        model,
+        1,
+        False,
+        cfg.training.num_workers,
+        False,
     )
     loader = dataset.test_dataset[0]
 

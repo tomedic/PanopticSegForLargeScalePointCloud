@@ -8,18 +8,18 @@ from skimage import measure
 
 try:
     import pycuda.driver as cuda
-    import pycuda.autoinit
     from pycuda.compiler import SourceModule
+
     FUSION_GPU_MODE = 1
 except Exception as err:
-    print('Warning: {}'.format(err))
-    print('Failed to import PyCUDA. Running fusion in CPU mode.')
+    print("Warning: {}".format(err))
+    print("Failed to import PyCUDA. Running fusion in CPU mode.")
     FUSION_GPU_MODE = 0
 
 
 class TSDFVolume:
-    """Volumetric TSDF Fusion of RGB-D Images.
-    """
+    """Volumetric TSDF Fusion of RGB-D Images."""
+
     def __init__(self, vol_bnds, voxel_size, use_gpu=True):
         """Constructor.
         Args:
@@ -35,17 +35,20 @@ class TSDFVolume:
         self._voxel_size = float(voxel_size)
         self._trunc_margin = 5 * self._voxel_size  # truncation on SDF
 
-
         # Adjust volume bounds and ensure C-order contiguous
-        self._vol_dim = np.ceil(
-            (self._vol_bnds[:, 1] - self._vol_bnds[:, 0]) /
-            self._voxel_size).copy(order='C').astype(int)
-        self._vol_bnds[:, 1] = self._vol_bnds[:, 0]+self._vol_dim*self._voxel_size
-        self._vol_origin = self._vol_bnds[:, 0].copy(order='C').astype(np.float32)
+        self._vol_dim = (
+            np.ceil((self._vol_bnds[:, 1] - self._vol_bnds[:, 0]) / self._voxel_size).copy(order="C").astype(int)
+        )
+        self._vol_bnds[:, 1] = self._vol_bnds[:, 0] + self._vol_dim * self._voxel_size
+        self._vol_origin = self._vol_bnds[:, 0].copy(order="C").astype(np.float32)
 
-        print("Voxel volume size: {} x {} x {} - # points: {:,}".format(
-            self._vol_dim[0], self._vol_dim[1], self._vol_dim[2],
-            self._vol_dim[0]*self._vol_dim[1]*self._vol_dim[2])
+        print(
+            "Voxel volume size: {} x {} x {} - # points: {:,}".format(
+                self._vol_dim[0],
+                self._vol_dim[1],
+                self._vol_dim[2],
+                self._vol_dim[0] * self._vol_dim[1] * self._vol_dim[2],
+            )
         )
 
         # Initialize pointers to voxel volume in CPU memory
@@ -62,7 +65,8 @@ class TSDFVolume:
             cuda.memcpy_htod(self._weight_vol_gpu, self._weight_vol_cpu)
 
             # Cuda kernel function (C++)
-            self._cuda_src_mod = SourceModule("""
+            self._cuda_src_mod = SourceModule(
+                """
             __global__ void integrate(float * tsdf_vol,
                                   float * weight_vol,
                                   float * vol_dim,
@@ -121,47 +125,38 @@ class TSDFVolume:
           weight_vol[voxel_idx] = w_new;
           tsdf_vol[voxel_idx] = (tsdf_vol[voxel_idx]*w_old+obs_weight*dist)/w_new;
 
-            }""")
+            }"""
+            )
 
             self._cuda_integrate = self._cuda_src_mod.get_function("integrate")
 
             # Determine block/grid size on GPU
             gpu_dev = cuda.Device(0)
             self._max_gpu_threads_per_block = gpu_dev.MAX_THREADS_PER_BLOCK
-            n_blocks = int(np.ceil(
-                float(np.prod(self._vol_dim)) /
-                float(self._max_gpu_threads_per_block)))
-            grid_dim_x = min(gpu_dev.MAX_GRID_DIM_X,
-                             int(np.floor(np.cbrt(n_blocks))))
-            grid_dim_y = min(gpu_dev.MAX_GRID_DIM_Y,
-                             int(np.floor(np.sqrt(n_blocks/grid_dim_x))))
-            grid_dim_z = min(gpu_dev.MAX_GRID_DIM_Z,
-                             int(np.ceil(float(n_blocks) /
-                                         float(grid_dim_x * grid_dim_y))))
-            self._max_gpu_grid_dim = np.array(
-                [grid_dim_x, grid_dim_y, grid_dim_z]).astype(int)
-            self._n_gpu_loops = int(np.ceil(
-                float(np.prod(self._vol_dim)) /
-                float(np.prod(self._max_gpu_grid_dim)*self._max_gpu_threads_per_block)))
+            n_blocks = int(np.ceil(float(np.prod(self._vol_dim)) / float(self._max_gpu_threads_per_block)))
+            grid_dim_x = min(gpu_dev.MAX_GRID_DIM_X, int(np.floor(np.cbrt(n_blocks))))
+            grid_dim_y = min(gpu_dev.MAX_GRID_DIM_Y, int(np.floor(np.sqrt(n_blocks / grid_dim_x))))
+            grid_dim_z = min(gpu_dev.MAX_GRID_DIM_Z, int(np.ceil(float(n_blocks) / float(grid_dim_x * grid_dim_y))))
+            self._max_gpu_grid_dim = np.array([grid_dim_x, grid_dim_y, grid_dim_z]).astype(int)
+            self._n_gpu_loops = int(
+                np.ceil(
+                    float(np.prod(self._vol_dim))
+                    / float(np.prod(self._max_gpu_grid_dim) * self._max_gpu_threads_per_block)
+                )
+            )
         else:
             # Get voxel grid coordinates
             xv, yv, zv = np.meshgrid(
-                range(self._vol_dim[0]),
-                range(self._vol_dim[1]),
-                range(self._vol_dim[2]),
-                indexing='ij'
+                range(self._vol_dim[0]), range(self._vol_dim[1]), range(self._vol_dim[2]), indexing="ij"
             )
-            self.vox_coords = np.concatenate([
-                xv.reshape(1, -1),
-                yv.reshape(1, -1),
-                zv.reshape(1, -1)
-            ], axis=0).astype(int).T
+            self.vox_coords = (
+                np.concatenate([xv.reshape(1, -1), yv.reshape(1, -1), zv.reshape(1, -1)], axis=0).astype(int).T
+            )
 
     @staticmethod
     @njit(parallel=True)
     def vox2world(vol_origin, vox_coords, vox_size):
-        """Convert voxel grid coordinates to world coordinates.
-        """
+        """Convert voxel grid coordinates to world coordinates."""
         vol_origin = vol_origin.astype(np.float32)
         vox_coords = vox_coords.astype(np.float32)
         cam_pts = np.empty_like(vox_coords, dtype=np.float32)
@@ -173,8 +168,7 @@ class TSDFVolume:
     @staticmethod
     @njit(parallel=True)
     def cam2pix(cam_pts, intr):
-        """Convert camera coordinates to pixel coordinates.
-        """
+        """Convert camera coordinates to pixel coordinates."""
         intr = intr.astype(np.float32)
         fx, fy = intr[0, 0], intr[1, 1]
         cx, cy = intr[0, 2], intr[1, 2]
@@ -187,8 +181,7 @@ class TSDFVolume:
     @staticmethod
     @njit(parallel=True)
     def integrate_tsdf(tsdf_vol, dist, w_old, obs_weight):
-        """Integrate the TSDF volume.
-        """
+        """Integrate the TSDF volume."""
         tsdf_vol_int = np.empty_like(tsdf_vol, dtype=np.float32)
         w_new = np.empty_like(w_old, dtype=np.float32)
         for i in prange(len(tsdf_vol)):
@@ -196,7 +189,7 @@ class TSDFVolume:
             tsdf_vol_int[i] = (w_old[i] * tsdf_vol[i] + obs_weight * dist[i]) / w_new[i]
         return tsdf_vol_int, w_new
 
-    def integrate(self, depth_im, cam_intr, cam_pose, obs_weight=1.):
+    def integrate(self, depth_im, cam_intr, cam_pose, obs_weight=1.0):
         """Integrate an RGB-D frame into the TSDF volume.
         Args:
         depth_im (ndarray): A depth image of shape (H, W).
@@ -208,27 +201,25 @@ class TSDFVolume:
         im_h, im_w = depth_im.shape
         if self.gpu_mode:  # GPU mode: integrate voxel volume (calls CUDA kernel)
             for gpu_loop_idx in range(self._n_gpu_loops):
-                self._cuda_integrate(self._tsdf_vol_gpu,
-                                     self._weight_vol_gpu,
-                                     cuda.InOut(self._vol_dim.astype(np.float32)),
-                                     cuda.InOut(self._vol_origin.astype(np.float32)),
-                                     cuda.InOut(cam_intr.reshape(-1).astype(np.float32)),
-                                     cuda.InOut(cam_pose.reshape(-1).astype(np.float32)),
-                                     cuda.InOut(np.asarray([
-                                         gpu_loop_idx,
-                                         self._voxel_size,
-                                         im_h,
-                                         im_w,
-                                         self._trunc_margin,
-                                         obs_weight
-                                     ], np.float32)),
-                                     cuda.InOut(depth_im.reshape(-1).astype(np.float32)),
-                                     block=(self._max_gpu_threads_per_block,1,1),
-                                     grid=(
-                                         int(self._max_gpu_grid_dim[0]),
-                                         int(self._max_gpu_grid_dim[1]),
-                                         int(self._max_gpu_grid_dim[2]),
-                                     )
+                self._cuda_integrate(
+                    self._tsdf_vol_gpu,
+                    self._weight_vol_gpu,
+                    cuda.InOut(self._vol_dim.astype(np.float32)),
+                    cuda.InOut(self._vol_origin.astype(np.float32)),
+                    cuda.InOut(cam_intr.reshape(-1).astype(np.float32)),
+                    cuda.InOut(cam_pose.reshape(-1).astype(np.float32)),
+                    cuda.InOut(
+                        np.asarray(
+                            [gpu_loop_idx, self._voxel_size, im_h, im_w, self._trunc_margin, obs_weight], np.float32
+                        )
+                    ),
+                    cuda.InOut(depth_im.reshape(-1).astype(np.float32)),
+                    block=(self._max_gpu_threads_per_block, 1, 1),
+                    grid=(
+                        int(self._max_gpu_grid_dim[0]),
+                        int(self._max_gpu_grid_dim[1]),
+                        int(self._max_gpu_grid_dim[2]),
+                    ),
                 )
         else:  # CPU mode: integrate voxel volume (vectorized implementation)
             # Convert voxel grid coordinates to pixel coordinates
@@ -241,10 +232,8 @@ class TSDFVolume:
             # Eliminate pixels outside view frustum
             valid_pix = np.logical_and(
                 pix_x >= 0,
-                np.logical_and(pix_x < im_w,
-                               np.logical_and(pix_y >= 0,
-                                              np.logical_and(pix_y < im_h,
-                                                             pix_z > 0))))
+                np.logical_and(pix_x < im_w, np.logical_and(pix_y >= 0, np.logical_and(pix_y < im_h, pix_z > 0))),
+            )
             depth_val = np.zeros(pix_x.shape)
             depth_val[valid_pix] = depth_im[pix_y[valid_pix], pix_x[valid_pix]]
 
@@ -270,15 +259,13 @@ class TSDFVolume:
         return self._tsdf_vol_cpu, self._weight_vol_cpu
 
     def get_mesh(self):
-        """Compute a mesh from the voxel volume using marching cubes.
-        """
+        """Compute a mesh from the voxel volume using marching cubes."""
         tsdf_vol, _ = self.get_volume()
 
         # Marching cubes
-        verts, faces, norms, vals = measure.marching_cubes_lewiner(tsdf_vol,
-                                                                   level=0)
+        verts, faces, norms, vals = measure.marching_cubes_lewiner(tsdf_vol, level=0)
 
-        verts = verts*self._voxel_size+self._vol_origin
+        verts = verts * self._voxel_size + self._vol_origin
         # voxel grid coordinates to world coordinates
         return verts, faces, norms
 
@@ -288,52 +275,44 @@ class TSDFVolume:
         """
         tsdf_vol, weight_vol = self.get_volume()
 
-        mask = np.logical_and(np.abs(tsdf_vol) < tsdf_thresh,
-                              weight_vol > weight_thresh)
+        mask = np.logical_and(np.abs(tsdf_vol) < tsdf_thresh, weight_vol > weight_thresh)
 
         xv, yv, zv = np.meshgrid(
-            range(self._vol_dim[0]),
-            range(self._vol_dim[1]),
-            range(self._vol_dim[2]),
-            indexing='ij'
+            range(self._vol_dim[0]), range(self._vol_dim[1]), range(self._vol_dim[2]), indexing="ij"
         )
         xv = xv[mask]
         yv = yv[mask]
         zv = zv[mask]
-        pcd_ind = np.concatenate([
-            xv.reshape(1, -1),
-            yv.reshape(1, -1),
-            zv.reshape(1, -1)
-        ], axis=0).astype(int).T
+        pcd_ind = np.concatenate([xv.reshape(1, -1), yv.reshape(1, -1), zv.reshape(1, -1)], axis=0).astype(int).T
 
-        pcd = pcd_ind.astype(float) * self._voxel_size+self._vol_origin
+        pcd = pcd_ind.astype(float) * self._voxel_size + self._vol_origin
         pcd_ind = pcd_ind.astype(int)
 
         return pcd
 
 
 def rigid_transform(xyz, transform):
-    """Applies a rigid transform to an (N, 3) pointcloud.
-        """
+    """Applies a rigid transform to an (N, 3) pointcloud."""
     xyz_h = np.hstack([xyz, np.ones((len(xyz), 1), dtype=np.float32)])
     xyz_t_h = np.dot(transform, xyz_h.T).T
     return xyz_t_h[:, :3]
 
 
 def get_view_frustum(depth_im, cam_intr, cam_pose):
-    """Get corners of 3D camera view frustum of depth image
-        """
+    """Get corners of 3D camera view frustum of depth image"""
     im_h = depth_im.shape[0]
     im_w = depth_im.shape[1]
     max_depth = np.max(depth_im)
-    view_frust_pts = np.array([
-        (np.array([0, 0, 0, im_w, im_w])-cam_intr[0, 2]) *
-        np.array([0, max_depth, max_depth, max_depth, max_depth]) /
-        cam_intr[0, 0],
-        (np.array([0, 0, im_h, 0, im_h]) - cam_intr[1, 2]) *
-        np.array([0, max_depth, max_depth, max_depth, max_depth]) /
-        cam_intr[1, 1],
-        np.array([0, max_depth, max_depth, max_depth, max_depth])
-    ])
+    view_frust_pts = np.array(
+        [
+            (np.array([0, 0, 0, im_w, im_w]) - cam_intr[0, 2])
+            * np.array([0, max_depth, max_depth, max_depth, max_depth])
+            / cam_intr[0, 0],
+            (np.array([0, 0, im_h, 0, im_h]) - cam_intr[1, 2])
+            * np.array([0, max_depth, max_depth, max_depth, max_depth])
+            / cam_intr[1, 1],
+            np.array([0, max_depth, max_depth, max_depth, max_depth]),
+        ]
+    )
     view_frust_pts = rigid_transform(view_frust_pts.T, cam_pose).T
     return view_frust_pts

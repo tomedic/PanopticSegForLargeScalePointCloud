@@ -1,24 +1,15 @@
-import glob
-import json
 import logging
 import numpy as np
 import os
 import os.path as osp
 
-import shutil
 import torch
 
-from torch_geometric.data import Dataset, download_url, extract_zip
+from torch_geometric.data import Dataset
 from torch_geometric.data import Data
-from torch_points3d.datasets.registration.detector import RandomDetector
-from torch_points3d.datasets.registration.utils import rgbd2fragment_rough
-from torch_points3d.datasets.registration.utils import rgbd2fragment_fine
 from torch_points3d.datasets.registration.utils import compute_overlap_and_matches
-from torch_points3d.datasets.registration.utils import to_list
 from torch_points3d.datasets.registration.utils import files_exist
 from torch_points3d.datasets.registration.utils import makedirs
-from torch_points3d.datasets.registration.utils import get_urls
-from torch_points3d.datasets.registration.utils import PatchExtractor
 
 log = logging.getLogger(__name__)
 
@@ -56,7 +47,7 @@ def compute_spaced_time_frame(list_name_frames, path, min_dist):
 
     list_sensor_pos = torch.stack(list_sensor_pos)
 
-    mask = ((list_sensor_pos.unsqueeze(0) - list_sensor_pos.unsqueeze(1)) ** 2).sum(2) > (min_dist ** 2)
+    mask = ((list_sensor_pos.unsqueeze(0) - list_sensor_pos.unsqueeze(1)) ** 2).sum(2) > (min_dist**2)
     curr_ind = 0
 
     for curr_ind in range(len(list_name_frames)):
@@ -86,7 +77,6 @@ class BaseKitti(Dataset):
         pre_transform=None,
         pre_filter=None,
     ):
-
         """
         KITTI Odometry dataset for pair registration
         """

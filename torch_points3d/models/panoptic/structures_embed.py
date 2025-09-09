@@ -22,34 +22,35 @@ class PanopticResults(NamedTuple):
     cluster_scores: torch.Tensor  # One float value per cluster
     mask_scores: torch.Tensor  # One float value per point belongs to clusters
     clusters: List[torch.Tensor]  # Each item contains the list of indices in the cluster
-    cluster_type: torch.Tensor  # Wether a cluster is coming from the votes or the original points. 0->original pos, 1->vote
+    cluster_type: (
+        torch.Tensor
+    )  # Wether a cluster is coming from the votes or the original points. 0->original pos, 1->vote
 
     def get_instances(self, nms_threshold=0.3, min_cluster_points=100, min_score=0.6) -> List:
-        """ Returns index of clusters that pass nms test, min size test and score test
-        """
+        """Returns index of clusters that pass nms test, min size test and score test"""
         if not self.clusters:
             return [], []
-        
-        if self.cluster_scores==None:
+
+        if self.cluster_scores == None:
             return None, self.clusters
         _mask = None
-        if self.mask_scores!=None:
-            _mask = self.mask_scores.squeeze(1) > -0.5  #??
+        if self.mask_scores != None:
+            _mask = self.mask_scores.squeeze(1) > -0.5  # ??
         n_prop = len(self.clusters)
         proposal_masks = torch.zeros(n_prop, self.semantic_logits.shape[0])
         # for i, cluster in enumerate(self.clusters):
         #     proposal_masks[i, cluster] = 1
-        
+
         proposals_idx = []
         for i, cluster in enumerate(self.clusters):
-            proposal_id = torch.ones(len(cluster)).cuda()*i
-            proposals_idx.append(torch.vstack((proposal_id,cluster)).T)
+            proposal_id = torch.ones(len(cluster)).cuda() * i
+            proposals_idx.append(torch.vstack((proposal_id, cluster)).T)
         proposals_idx = torch.cat(proposals_idx, dim=0)
-        if _mask!=None:
+        if _mask != None:
             proposals_idx_filtered = proposals_idx[_mask]
         else:
             proposals_idx_filtered = proposals_idx
-        #proposals_idx_filtered = proposals_idx[_mask]
+        # proposals_idx_filtered = proposals_idx[_mask]
         proposal_masks[proposals_idx_filtered[:, 0].long(), proposals_idx_filtered[:, 1].long()] = 1
 
         intersection = torch.mm(proposal_masks, proposal_masks.t())  # (nProposal, nProposal), float, cuda
@@ -62,12 +63,13 @@ class PanopticResults(NamedTuple):
         valid_pick_ids = []
         valid_clusters = []
         for i in pick_idxs:
-            cl_mask = proposals_idx_filtered[:,0]==i
-            cl = proposals_idx_filtered[cl_mask][:,1].long()
+            cl_mask = proposals_idx_filtered[:, 0] == i
+            cl = proposals_idx_filtered[cl_mask][:, 1].long()
             if len(cl) > min_cluster_points and self.cluster_scores[i] > min_score:
                 valid_pick_ids.append(i)
                 valid_clusters.append(cl)
         return valid_pick_ids, valid_clusters
+
 
 class PanopticLabels(NamedTuple):
     center_label: torch.Tensor

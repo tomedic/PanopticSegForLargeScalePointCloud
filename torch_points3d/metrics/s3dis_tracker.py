@@ -5,8 +5,6 @@ from torch_geometric.nn.unpool import knn_interpolate
 
 from torch_points3d.metrics.confusion_matrix import ConfusionMatrix
 from torch_points3d.metrics.segmentation_tracker import SegmentationTracker
-from torch_points3d.metrics.base_tracker import BaseTracker, meter_value
-from torch_points3d.datasets.segmentation import IGNORE_LABEL
 from torch_points3d.core.data_transform import SaveOriginalPosId
 from torch_points3d.models import model_interface
 
@@ -23,8 +21,7 @@ class S3DISTracker(SegmentationTracker):
         self._iou_per_class = {}
 
     def track(self, model: model_interface.TrackerInterface, full_res=False, data=None, **kwargs):
-        """ Add current model predictions (usually the result of a batch) to the tracking
-        """
+        """Add current model predictions (usually the result of a batch) to the tracking"""
         super().track(model)
 
         # Train mode or low res, nothing special to do
@@ -46,7 +43,7 @@ class S3DISTracker(SegmentationTracker):
             raise ValueError("The inputs given to the model do not have a %s attribute." % SaveOriginalPosId.KEY)
 
         originids = inputs[SaveOriginalPosId.KEY]
-        #print(originids)
+        # print(originids)
         if originids.dim() == 2:
             originids = originids.flatten()
         if originids.max() >= self._test_area.pos.shape[0]:
@@ -56,8 +53,8 @@ class S3DISTracker(SegmentationTracker):
         outputs = model.get_output()
         self._test_area.votes[originids] += outputs
         self._test_area.prediction_count[originids] += 1
-        
-        #add block merging
+
+        # add block merging
 
     def finalise(self, full_res=False, vote_miou=True, ply_output="", **kwargs):
         per_class_iou = self._confusion_matrix.get_intersection_union_per_class()[0]
@@ -83,11 +80,14 @@ class S3DISTracker(SegmentationTracker):
                 torch.argmax(self._test_area.votes[has_prediction], 1).cpu().numpy(),
                 ply_output,
             )
-            
+
             self._test_area = self._test_area.to("cpu")
             full_pred = knn_interpolate(
-            self._test_area.votes[has_prediction], self._test_area.pos[has_prediction], self._test_area.pos, k=1,
-        )
+                self._test_area.votes[has_prediction],
+                self._test_area.pos[has_prediction],
+                self._test_area.pos,
+                k=1,
+            )
             self._dataset.to_ply(
                 self._test_area.pos,
                 torch.argmax(full_pred, 1).numpy(),
@@ -108,7 +108,10 @@ class S3DISTracker(SegmentationTracker):
 
         # Full res interpolation
         full_pred = knn_interpolate(
-            self._test_area.votes[has_prediction], self._test_area.pos[has_prediction], self._test_area.pos, k=1,
+            self._test_area.votes[has_prediction],
+            self._test_area.pos[has_prediction],
+            self._test_area.pos,
+            k=1,
         )
 
         # Full res pred
@@ -121,8 +124,7 @@ class S3DISTracker(SegmentationTracker):
         return self._full_confusion
 
     def get_metrics(self, verbose=False) -> Dict[str, Any]:
-        """ Returns a dictionnary of all metrics and losses being tracked
-        """
+        """Returns a dictionnary of all metrics and losses being tracked"""
         metrics = super().get_metrics(verbose)
 
         if verbose:

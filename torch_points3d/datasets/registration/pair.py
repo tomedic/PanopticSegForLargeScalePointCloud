@@ -5,21 +5,20 @@ from torch_geometric.data import Batch
 from torch_points3d.datasets.multiscale_data import MultiScaleBatch, MultiScaleData
 import re
 
+
 class Pair(Data):
 
     def __init__(
-            self,
-            x=None,
-            y=None,
-            pos=None,
-            x_target=None,
-            pos_target=None,
-            **kwargs,
+        self,
+        x=None,
+        y=None,
+        pos=None,
+        x_target=None,
+        pos_target=None,
+        **kwargs,
     ):
         self.__data_class__ = Data
-        super(Pair, self).__init__(x=x, pos=pos,
-                                   x_target=x_target, pos_target=pos_target, **kwargs)
-
+        super(Pair, self).__init__(x=x, pos=pos, x_target=x_target, pos_target=pos_target, **kwargs)
 
     @classmethod
     def make_pair(cls, data_source, data_target):
@@ -31,8 +30,8 @@ class Pair(Data):
         for key in data_source.keys:
             batch[key] = data_source[key]
         for key_target in data_target.keys:
-            batch[key_target+"_target"] = data_target[key_target]
-        if(batch.x is None):
+            batch[key_target + "_target"] = data_target[key_target]
+        if batch.x is None:
             batch["x_target"] = None
         return batch.contiguous()
 
@@ -50,32 +49,36 @@ class Pair(Data):
 
     @property
     def num_nodes_target(self):
-        for key, item in self('x_target', 'pos_target', 'norm_target', 'batch_target'):
+        for key, item in self("x_target", "pos_target", "norm_target", "batch_target"):
             return item.size(self.__cat_dim__(key, item))
         return None
 
 
 class MultiScalePair(Pair):
     def __init__(
-            self,
-            x=None,
-            y=None,
-            pos=None,
-            multiscale: Optional[List[Data]] = None,
-            upsample: Optional[List[Data]] = None,
-            x_target=None,
-            pos_target=None,
-            multiscale_target: Optional[List[Data]] = None,
-            upsample_target: Optional[List[Data]] = None,
-            **kwargs,
+        self,
+        x=None,
+        y=None,
+        pos=None,
+        multiscale: Optional[List[Data]] = None,
+        upsample: Optional[List[Data]] = None,
+        x_target=None,
+        pos_target=None,
+        multiscale_target: Optional[List[Data]] = None,
+        upsample_target: Optional[List[Data]] = None,
+        **kwargs,
     ):
-        super(MultiScalePair, self).__init__(x=x, pos=pos,
-                                             multiscale=multiscale,
-                                             upsample=upsample,
-                                             x_target=x_target, pos_target=pos_target,
-                                             multiscale_target=multiscale_target,
-                                             upsample_target=upsample_target,
-                                             **kwargs)
+        super(MultiScalePair, self).__init__(
+            x=x,
+            pos=pos,
+            multiscale=multiscale,
+            upsample=upsample,
+            x_target=x_target,
+            pos_target=pos_target,
+            multiscale_target=multiscale_target,
+            upsample_target=upsample_target,
+            **kwargs,
+        )
         self.__data_class__ = MultiScaleData
 
     def apply(self, func, *keys):
@@ -97,14 +100,12 @@ class MultiScalePair(Pair):
 
     @property
     def num_scales(self):
-        """ Number of scales in the multiscale array
-        """
+        """Number of scales in the multiscale array"""
         return len(self.multiscale) if self.multiscale else 0
 
     @property
     def num_upsample(self):
-        """ Number of upsample operations
-        """
+        """Number of upsample operations"""
         return len(self.upsample) if self.upsample else 0
 
     @classmethod
@@ -135,7 +136,7 @@ class PairBatch(Pair):
         """
         assert isinstance(data_list[0], Pair)
         data_list_s, data_list_t = list(map(list, zip(*[data.to_data() for data in data_list])))
-        if hasattr(data_list_s[0], 'pair_ind'):
+        if hasattr(data_list_s[0], "pair_ind"):
             pair_ind = concatenate_pair_ind(data_list_s, data_list_t)
         else:
             pair_ind = None
@@ -144,6 +145,7 @@ class PairBatch(Pair):
         pair = PairBatch.make_pair(batch_s, batch_t)
         pair.pair_ind = pair_ind
         return pair.contiguous()
+
 
 class PairMultiScaleBatch(MultiScalePair):
 
@@ -161,7 +163,7 @@ class PairMultiScaleBatch(MultiScalePair):
         Warning : follow_batch is not here yet...
         """
         data_list_s, data_list_t = list(map(list, zip(*[data.to_data() for data in data_list])))
-        if hasattr(data_list_s[0], 'pair_ind'):
+        if hasattr(data_list_s[0], "pair_ind"):
             pair_ind = concatenate_pair_ind(data_list_s, data_list_t).to(torch.long)
         else:
             pair_ind = None
@@ -173,8 +175,7 @@ class PairMultiScaleBatch(MultiScalePair):
 
 
 class DensePairBatch(Pair):
-    r""" A classic batch object wrapper with :class:`Pair`. Used for Dense Pair Batch (ie pointcloud with fixed size).
-    """
+    r"""A classic batch object wrapper with :class:`Pair`. Used for Dense Pair Batch (ie pointcloud with fixed size)."""
 
     def __init__(self, batch=None, **kwargs):
         super(DensePairBatch, self).__init__(**kwargs)
@@ -209,17 +210,13 @@ class DensePairBatch(Pair):
 
         for key in batch.keys:
             item = batch[key][0]
-            if (
-                torch.is_tensor(item)
-                or isinstance(item, int)
-                or isinstance(item, float)
-            ):
+            if torch.is_tensor(item) or isinstance(item, int) or isinstance(item, float):
                 if key != "pair_ind":
                     batch[key] = torch.stack(batch[key])
             else:
                 raise ValueError("Unsupported attribute type")
         # add pair_ind for dense data too
-        if hasattr(data_list[0], 'pair_ind'):
+        if hasattr(data_list[0], "pair_ind"):
             pair_ind = concatenate_pair_ind(data_list, data_list).to(torch.long)
         else:
             pair_ind = None
@@ -253,8 +250,7 @@ def concatenate_pair_ind(list_data_source, list_data_target):
     list_pair_ind = []
     cum_size = torch.zeros(2)
     for i in range(len(list_data_source)):
-        size = torch.tensor([len(list_data_source[i].pos),
-                             len(list_data_target[i].pos)])
+        size = torch.tensor([len(list_data_source[i].pos), len(list_data_target[i].pos)])
         list_pair_ind.append(list_data_source[i].pair_ind + cum_size)
         cum_size = cum_size + size
     return torch.cat(list_pair_ind, 0)

@@ -1,23 +1,9 @@
 from typing import List, Optional
-from tqdm.auto import tqdm as tq
-import itertools
 import numpy as np
-import math
-import re
 import torch
 import random
-from torch.nn import functional as F
-from functools import partial
 
-from torch_geometric.nn import fps, radius, knn, voxel_grid
-from torch_geometric.nn.pool.consecutive import consecutive_cluster
-from torch_geometric.nn.pool.pool import pool_pos, pool_batch
-from torch_scatter import scatter_add, scatter_mean
-from torch_geometric.data import Data, Batch
-from torch_points3d.datasets.multiscale_data import MultiScaleData
-from torch_points3d.utils.transform_utils import SamplingStrategy
-from torch_points3d.utils.config import is_list
-from torch_points3d.utils import is_iterable
+from torch_geometric.data import Data
 from torch_points3d.utils.geometry import euler_angles_to_rotation_matrix
 
 
@@ -362,7 +348,8 @@ class XYZFeature(object):
 
     def __repr__(self):
         return "{}(axis={})".format(self.__class__.__name__, self._axis_names)
-        
+
+
 class XYZRelaFeature(object):
     """
     Add the relative X, Y and Z as a feature

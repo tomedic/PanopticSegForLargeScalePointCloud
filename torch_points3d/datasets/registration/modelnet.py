@@ -1,20 +1,10 @@
-import numpy as np
-import random
-from itertools import repeat, product
-import os
-import os.path as osp
+from itertools import repeat
 import torch
 
-from torch_geometric.data import Data
-from torch_points_kernels.points_cpu import ball_query
 
 from torch_points3d.datasets.classification.modelnet import SampledModelNet
 from torch_points3d.datasets.registration.base_siamese_dataset import BaseSiameseDataset
 from torch_points3d.datasets.registration.base_siamese_dataset import GeneralFragment
-from torch_points3d.metrics.registration_tracker import FragmentRegistrationTracker
-from torch_points3d.datasets.registration.pair import Pair, MultiScalePair
-from torch_points3d.datasets.registration.utils import tracked_matches
-from torch_points3d.datasets.registration.utils import compute_overlap_and_matches
 
 
 class SiameseModelNet(SampledModelNet, GeneralFragment):
@@ -29,28 +19,24 @@ class SiameseModelNet(SampledModelNet, GeneralFragment):
     Only the self supervised mode is supported
     """
 
-    def __init__(self, root,
-                 name_modelnet="10",
-                 min_size_block=0.3,
-                 max_size_block=2,
-                 max_dist_overlap=0.1,
-                 train=True,
-                 transform=None,
-                 pre_transform=None,
-                 pre_filter=None,
-                 num_pos_pairs=1024,
-                 ss_transform=None,
-                 min_points=500,
-                 use_fps=False
+    def __init__(
+        self,
+        root,
+        name_modelnet="10",
+        min_size_block=0.3,
+        max_size_block=2,
+        max_dist_overlap=0.1,
+        train=True,
+        transform=None,
+        pre_transform=None,
+        pre_filter=None,
+        num_pos_pairs=1024,
+        ss_transform=None,
+        min_points=500,
+        use_fps=False,
     ):
-        SampledModelNet.__init__(self,
-                                 root,
-                                 name_modelnet,
-                                 train,
-                                 transform,
-                                 pre_transform,
-                                 pre_filter)
-        self.self_supervised = True # only self supervised is allowed for modelnet
+        SampledModelNet.__init__(self, root, name_modelnet, train, transform, pre_transform, pre_filter)
+        self.self_supervised = True  # only self supervised is allowed for modelnet
         self.is_online_matching = False
         self.num_pos_pairs = num_pos_pairs
         self.min_size_block = min_size_block
@@ -60,7 +46,7 @@ class SiameseModelNet(SampledModelNet, GeneralFragment):
         self.min_points = min_points
         self.train = train
         self.use_fps = use_fps
-        if(self.train):
+        if self.train:
             self.name = "train"
         else:
             self.name = "test"
@@ -68,7 +54,7 @@ class SiameseModelNet(SampledModelNet, GeneralFragment):
     def get_model(self, idx):
         data = self.data.__class__()
 
-        if hasattr(self.data, '__num_nodes__'):
+        if hasattr(self.data, "__num_nodes__"):
             data.num_nodes = self.data.__num_nodes__[idx]
 
         for key in self.data.keys:
@@ -86,12 +72,10 @@ class SiameseModelNet(SampledModelNet, GeneralFragment):
         return data
 
     def get_raw_pair(self, idx):
-        """
-        """
+        """ """
         data_source_o = self.get_model(idx)
         data_target_o = self.get_model(idx)
-        data_source, data_target, new_pair = self.unsupervised_preprocess(
-            data_source_o, data_target_o)
+        data_source, data_target, new_pair = self.unsupervised_preprocess(data_source_o, data_target_o)
         return data_source, data_target, new_pair
 
     def __getitem__(self, idx):
@@ -132,7 +116,8 @@ class SiameseModelNetDataset(BaseSiameseDataset):
             num_pos_pairs=dataset_opt.num_pos_pairs,
             ss_transform=ss_transform,
             min_points=dataset_opt.min_points,
-            use_fps=dataset_opt.use_fps)
+            use_fps=dataset_opt.use_fps,
+        )
 
         self.test_dataset = SiameseModelNet(
             root=self._data_path,
@@ -145,4 +130,5 @@ class SiameseModelNetDataset(BaseSiameseDataset):
             transform=test_transform,
             pre_filter=pre_filter,
             num_pos_pairs=dataset_opt.num_pos_pairs,
-            min_points=dataset_opt.min_points)
+            min_points=dataset_opt.min_points,
+        )

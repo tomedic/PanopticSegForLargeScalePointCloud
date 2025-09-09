@@ -222,7 +222,6 @@ class ResUNetBN2E(ResUNet2):
 
 
 class Res2BlockDown(ME.MinkowskiNetwork):
-
     """
     block for unwrapped Resnet
     """
@@ -237,7 +236,7 @@ class Res2BlockDown(ME.MinkowskiNetwork):
         bn_momentum=0.01,
         norm_type=NormType.BATCH_NORM,
         block_norm_type=NormType.BATCH_NORM,
-        **kwargs
+        **kwargs,
     ):
         ME.MinkowskiNetwork.__init__(self, dimension)
         self.conv = ME.MinkowskiConvolution(
@@ -261,7 +260,6 @@ class Res2BlockDown(ME.MinkowskiNetwork):
 
 
 class Res2BlockUp(ME.MinkowskiNetwork):
-
     """
     block for unwrapped Resnet
     """
@@ -276,7 +274,7 @@ class Res2BlockUp(ME.MinkowskiNetwork):
         bn_momentum=0.01,
         norm_type=NormType.BATCH_NORM,
         block_norm_type=NormType.BATCH_NORM,
-        **kwargs
+        **kwargs,
     ):
         ME.MinkowskiNetwork.__init__(self, dimension)
         self.conv = ME.MinkowskiConvolutionTranspose(

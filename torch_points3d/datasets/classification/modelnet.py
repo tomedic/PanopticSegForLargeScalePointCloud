@@ -3,14 +3,13 @@ import os
 import shutil
 import torch
 
-from torch_geometric.datasets import ModelNet
-from torch_geometric.data import DataLoader, InMemoryDataset, extract_zip, Data
-import torch_geometric.transforms as T
+from torch_geometric.data import InMemoryDataset, extract_zip, Data
 from torch_geometric.io import read_txt_array
 
 from torch_points3d.datasets.base_dataset import BaseDataset
 from torch_points3d.metrics.classification_tracker import ClassificationTracker
 from torch_points3d.utils.download import download_url
+
 
 class SampledModelNet(InMemoryDataset):
     r"""The ModelNet10/40 dataset from the `"3D ShapeNets: A Deep

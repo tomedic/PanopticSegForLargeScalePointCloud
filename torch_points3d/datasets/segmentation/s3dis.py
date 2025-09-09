@@ -1,27 +1,19 @@
 import os
 import os.path as osp
-from itertools import repeat, product
 import numpy as np
-import h5py
 import torch
 import random
 import glob
 from plyfile import PlyData, PlyElement
-from torch_geometric.data import InMemoryDataset, Data, extract_zip, Dataset
-from torch_geometric.data.dataset import files_exist
-from torch_geometric.data import DataLoader
+from torch_geometric.data import InMemoryDataset, Data, extract_zip
 from torch_geometric.datasets import S3DIS as S3DIS1x1
-import torch_geometric.transforms as T
 import logging
-from sklearn.neighbors import NearestNeighbors, KDTree
+from sklearn.neighbors import KDTree
 from tqdm.auto import tqdm as tq
-import csv
 import pandas as pd
-import pickle
 import gdown
 import shutil
 
-from torch_points3d.datasets.samplers import BalancedRandomSampler
 import torch_points3d.core.data_transform as cT
 from torch_points3d.datasets.base_dataset import BaseDataset
 
@@ -108,7 +100,9 @@ def object_name_to_label(object_class):
     object_label = OBJECT_LABEL.get(object_class, OBJECT_LABEL["clutter"])
     return object_label
 
+
 i_object = 1
+
 
 def read_s3dis_format(train_file, room_name, label_out=True, verbose=False, debug=False):
     """extract data from a room folder"""
@@ -136,24 +130,24 @@ def read_s3dis_format(train_file, room_name, label_out=True, verbose=False, debu
         rgb = np.empty((0, 3), dtype=np.uint8)
         semantic_labels = np.empty((0, 1), dtype=np.int32)
         instance_labels = np.empty((0, 1), dtype=np.int32)
-        #room_ver = pd.read_csv(raw_path, sep=" ", header=None).values
-        #xyz = np.ascontiguousarray(room_ver[:, 0:3], dtype="float32")
-        #try:
+        # room_ver = pd.read_csv(raw_path, sep=" ", header=None).values
+        # xyz = np.ascontiguousarray(room_ver[:, 0:3], dtype="float32")
+        # try:
         #    rgb = np.ascontiguousarray(room_ver[:, 3:6], dtype="uint8")
-        #except ValueError:
+        # except ValueError:
         #    rgb = np.zeros((room_ver.shape[0], 3), dtype="uint8")
         #    log.warning("WARN - corrupted rgb data for file %s" % raw_path)
-        #if not label_out:
+        # if not label_out:
         #    return xyz, rgb
-        #n_ver = len(room_ver)
-        #del room_ver
-        #nn = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(xyz)
-        #semantic_labels = np.zeros((n_ver,), dtype="int32")
+        # n_ver = len(room_ver)
+        # del room_ver
+        # nn = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(xyz)
+        # semantic_labels = np.zeros((n_ver,), dtype="int32")
         room_label = np.asarray([room_label])
-        #instance_labels = np.zeros((n_ver,), dtype="int32")
-        
+        # instance_labels = np.zeros((n_ver,), dtype="int32")
+
         objects = glob.glob(osp.join(train_file, "Annotations/*.txt"))
-        #i_object = 1
+        # i_object = 1
         for single_object in objects:
             object_name = os.path.splitext(os.path.basename(single_object))[0]
             if verbose:
@@ -161,7 +155,7 @@ def read_s3dis_format(train_file, room_name, label_out=True, verbose=False, debu
             object_class = object_name.split("_")[0]
             object_label = object_name_to_label(object_class)
             obj_ver = pd.read_csv(single_object, sep=" ", header=None).values
-            #_, obj_ind = nn.kneighbors(obj_ver[:, 0:3])
+            # _, obj_ind = nn.kneighbors(obj_ver[:, 0:3])
 
             # Stack all data
             xyz = np.vstack((xyz, obj_ver[:, 0:3].astype(np.float32)))
@@ -172,8 +166,8 @@ def read_s3dis_format(train_file, room_name, label_out=True, verbose=False, debu
             instance_labels = np.vstack((instance_labels, object_instances))
             i_object = i_object + 1
 
-        xyz=np.ascontiguousarray(xyz, dtype="float32")
-        rgb=np.ascontiguousarray(rgb, dtype="uint8")
+        xyz = np.ascontiguousarray(xyz, dtype="float32")
+        rgb = np.ascontiguousarray(rgb, dtype="uint8")
         instance_labels = np.reshape(instance_labels, (-1,))
         semantic_labels = np.reshape(semantic_labels, (-1,))
         return (
@@ -201,29 +195,29 @@ def to_ply(pos, label, file):
     ply_array["blue"] = colors[:, 2]
     el = PlyElement.describe(ply_array, "S3DIS")
     PlyData([el], byte_order=">").write(file)
-    
+
+
 def to_eval_ply(pos, pre_label, gt, file):
     assert len(pre_label.shape) == 1
     assert len(gt.shape) == 1
     assert pos.shape[0] == pre_label.shape[0]
     assert pos.shape[0] == gt.shape[0]
     pos = np.asarray(pos)
-    ply_array = np.ones(
-        pos.shape[0], dtype=[("x", "f4"), ("y", "f4"), ("z", "f4"), ("preds", "u16"), ("gt", "u16")]
-    )
+    ply_array = np.ones(pos.shape[0], dtype=[("x", "f4"), ("y", "f4"), ("z", "f4"), ("preds", "u16"), ("gt", "u16")])
     ply_array["x"] = pos[:, 0]
     ply_array["y"] = pos[:, 1]
     ply_array["z"] = pos[:, 2]
     ply_array["preds"] = np.asarray(pre_label)
     ply_array["gt"] = np.asarray(gt)
     PlyData.write(file)
-    
+
+
 def to_ins_ply(pos, label, file):
     assert len(label.shape) == 1
     assert pos.shape[0] == label.shape[0]
     pos = np.asarray(pos)
-    max_instance = np.max(np.asarray(label)).astype(np.int32)+1
-    rd_colors = np.random.randint(255, size=(max_instance,3), dtype=np.uint8)
+    max_instance = np.max(np.asarray(label)).astype(np.int32) + 1
+    rd_colors = np.random.randint(255, size=(max_instance, 3), dtype=np.uint8)
     colors = rd_colors[np.asarray(label)]
     ply_array = np.ones(
         pos.shape[0], dtype=[("x", "f4"), ("y", "f4"), ("z", "f4"), ("red", "u1"), ("green", "u1"), ("blue", "u1")]
@@ -280,8 +274,8 @@ class S3DIS1x1Dataset(BaseDataset):
 
 
 class S3DISOriginalFused(InMemoryDataset):
-    """ Original S3DIS dataset. Each area is loaded individually and can be processed using a pre_collate transform. 
-    This transform can be used for example to fuse the area into a single space and split it into 
+    """Original S3DIS dataset. Each area is loaded individually and can be processed using a pre_collate transform.
+    This transform can be used for example to fuse the area into a single space and split it into
     spheres or smaller regions. If no fusion is applied, each element in the dataset is a single room by default.
 
     http://buildingparser.stanford.edu/dataset.html
@@ -366,7 +360,7 @@ class S3DISOriginalFused(InMemoryDataset):
 
     @property
     def processed_dir(self):
-        return osp.join(self.root,'processed_'+str(self.grid_size)+'_'+str(self.test_area))
+        return osp.join(self.root, "processed_" + str(self.grid_size) + "_" + str(self.test_area))
 
     @property
     def pre_processed_path(self):
@@ -424,10 +418,10 @@ class S3DISOriginalFused(InMemoryDataset):
             train_areas = [f for f in self.folders if str(self.test_area) not in f]
             test_areas = [f for f in self.folders if str(self.test_area) in f]
 
-            #print("train_areas:")
-            #print(train_areas)
-            #print("test_areas:")
-            #print(test_areas)
+            # print("train_areas:")
+            # print(train_areas)
+            # print("test_areas:")
+            # print(test_areas)
 
             train_files = [
                 (f, room_name, osp.join(self.raw_dir, f, room_name))
@@ -435,21 +429,21 @@ class S3DISOriginalFused(InMemoryDataset):
                 for room_name in os.listdir(osp.join(self.raw_dir, f))
                 if os.path.isdir(osp.join(self.raw_dir, f, room_name))
             ]
-            #print("train_files:") #('Area_1', 'hallway_6', '/scratch2/torch-points3d/data/s3disfused/raw/Area_1/hallway_6'), ('Area_1', 'hallway_5', '/scratch2/torch-points3d/data/s3disfused/raw/Area_1/hallway_5'),..
-            #print(train_files)
+            # print("train_files:") #('Area_1', 'hallway_6', '/scratch2/torch-points3d/data/s3disfused/raw/Area_1/hallway_6'), ('Area_1', 'hallway_5', '/scratch2/torch-points3d/data/s3disfused/raw/Area_1/hallway_5'),..
+            # print(train_files)
             test_files = [
                 (f, room_name, osp.join(self.raw_dir, f, room_name))
                 for f in test_areas
                 for room_name in os.listdir(osp.join(self.raw_dir, f))
                 if os.path.isdir(osp.join(self.raw_dir, f, room_name))
             ]
-            #print("test_files:")
-            #print(test_files)
+            # print("test_files:")
+            # print(test_files)
             # Gather data per area
             data_list = [[] for _ in range(6)]
             if self.debug:
                 areas = np.zeros(7)
-            for (area, room_name, file_path) in tq(train_files + test_files):
+            for area, room_name, file_path in tq(train_files + test_files):
                 if self.debug:
                     area_idx = int(area.split("_")[-1])
                     if areas[area_idx] == 5:
@@ -479,13 +473,13 @@ class S3DISOriginalFused(InMemoryDataset):
 
                     if self.pre_filter is not None and not self.pre_filter(data):
                         continue
-                    #print("area_num:")
-                    #print(area_num)
-                    #print("data:")  #Data(pos=[444682, 3], rgb=[444682, 3], validation_set=True, y=[444682])
-                    #print(data)
+                    # print("area_num:")
+                    # print(area_num)
+                    # print("data:")  #Data(pos=[444682, 3], rgb=[444682, 3], validation_set=True, y=[444682])
+                    # print(data)
                     data_list[area_num].append(data)
-            #print("data_list")
-            #print(data_list)
+            # print("data_list")
+            # print(data_list)
             raw_areas = cT.PointCloudFusion()(data_list)
             print("raw_areas")
             print(raw_areas)
@@ -524,17 +518,16 @@ class S3DISOriginalFused(InMemoryDataset):
         val_data_list = list(val_data_list.values())
         trainval_data_list = list(trainval_data_list.values())
         test_data_list = data_list[self.test_area - 1]
-       
-        
+
         if self.pre_collate_transform:
             log.info("pre_collate_transform ...")
             log.info(self.pre_collate_transform)
-            #print("train_data_list:")
-            #print(train_data_list)
-            #print("val_data_list:")
-            #print(val_data_list)
-            #print("test_data_list:")
-            #print(test_data_list)
+            # print("train_data_list:")
+            # print(train_data_list)
+            # print("val_data_list:")
+            # print(val_data_list)
+            # print("test_data_list:")
+            # print(test_data_list)
             train_data_list = self.pre_collate_transform(train_data_list)
             val_data_list = self.pre_collate_transform(val_data_list)
             test_data_list = self.pre_collate_transform(test_data_list)
@@ -553,7 +546,7 @@ class S3DISOriginalFused(InMemoryDataset):
 
 
 class S3DISSphere(S3DISOriginalFused):
-    """ Small variation of S3DISOriginalFused that allows random sampling of spheres 
+    """Small variation of S3DISOriginalFused that allows random sampling of spheres
     within an Area during training and validation. Spheres have a radius of 2m. If sample_per_epoch is not specified, spheres
     are taken on a 2m grid.
 
@@ -694,7 +687,7 @@ class S3DISCylinder(S3DISSphere):
 
 
 class S3DISFusedDataset(BaseDataset):
-    """ Wrapper around S3DISSphere that creates train and test datasets.
+    """Wrapper around S3DISSphere that creates train and test datasets.
 
     http://buildingparser.stanford.edu/dataset.html
 
@@ -737,7 +730,7 @@ class S3DISFusedDataset(BaseDataset):
         )
         self.test_dataset = dataset_cls(
             self._data_path,
-            sample_per_epoch=-1, #2000, 
+            sample_per_epoch=-1,  # 2000,
             test_area=self.dataset_opt.fold,
             split="test",
             pre_collate_transform=self.pre_collate_transform,
@@ -754,10 +747,10 @@ class S3DISFusedDataset(BaseDataset):
     @property
     def test_data_spheres(self):
         return self.test_dataset[0]._test_spheres
-        
+
     @staticmethod
     def to_ply(pos, label, file):
-        """ Allows to save s3dis predictions to disk using s3dis color scheme
+        """Allows to save s3dis predictions to disk using s3dis color scheme
 
         Parameters
         ----------

@@ -6,7 +6,7 @@ from torch.nn import ELU, Conv1d
 from torch_geometric.nn import Reshape
 from torch_geometric.nn.inits import reset
 
-from torch_points3d.core.spatial_ops import RandomSampler, FPSSampler, DilatedKNNNeighbourFinder
+from torch_points3d.core.spatial_ops import FPSSampler, DilatedKNNNeighbourFinder
 from torch_points3d.core.base_conv.message_passing import *
 
 
@@ -52,7 +52,15 @@ class XConv(torch.nn.Module):
     """
 
     def __init__(
-        self, in_channels, out_channels, dim, kernel_size, hidden_channels=None, dilation=1, bias=True, **kwargs,
+        self,
+        in_channels,
+        out_channels,
+        dim,
+        kernel_size,
+        hidden_channels=None,
+        dilation=1,
+        bias=True,
+        **kwargs,
     ):
         super(XConv, self).__init__()
 
@@ -71,20 +79,26 @@ class XConv(torch.nn.Module):
         D, K = dim, kernel_size
 
         self.mlp1 = S(
-            L(dim, C_delta), ELU(), BN(C_delta), L(C_delta, C_delta), ELU(), BN(C_delta), Reshape(-1, K, C_delta),
+            L(dim, C_delta),
+            ELU(),
+            BN(C_delta),
+            L(C_delta, C_delta),
+            ELU(),
+            BN(C_delta),
+            Reshape(-1, K, C_delta),
         )
 
         self.mlp2 = S(
-            L(D * K, K ** 2),
+            L(D * K, K**2),
             ELU(),
-            BN(K ** 2),
+            BN(K**2),
             Reshape(-1, K, K),
-            Conv1d(K, K ** 2, K, groups=K),
+            Conv1d(K, K**2, K, groups=K),
             ELU(),
-            BN(K ** 2),
+            BN(K**2),
             Reshape(-1, K, K),
-            Conv1d(K, K ** 2, K, groups=K),
-            BN(K ** 2),
+            Conv1d(K, K**2, K, groups=K),
+            BN(K**2),
             Reshape(-1, K, K),
         )
 
@@ -142,7 +156,16 @@ class XConv(torch.nn.Module):
 
 class PointCNNConvDown(BaseConvolutionDown):
     def __init__(
-        self, inN=None, outN=None, K=None, D=None, C1=None, C2=None, hidden_channel=None, *args, **kwargs,
+        self,
+        inN=None,
+        outN=None,
+        K=None,
+        D=None,
+        C1=None,
+        C2=None,
+        hidden_channel=None,
+        *args,
+        **kwargs,
     ):
         super(PointCNNConvDown, self).__init__(FPSSampler(outN / inN), DilatedKNNNeighbourFinder(K, D))
 
