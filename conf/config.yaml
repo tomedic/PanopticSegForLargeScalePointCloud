@@ -3,17 +3,18 @@ defaults: # for loading the default.yaml config
 
   - visualization: default
   - lr_scheduler: exponential
-  - training: ablation_area4_set2  #pointgroup_NPM3D-embed-cluster1_scratch1
+  - training: wheat3d_v0.yaml  #pointgroup_NPM3D-embed-cluster1_scratch1
 #
   - debugging: default
-  - models: panoptic/area4_ablation_2  #panoptic/pointgroup-embed_clustertype1_scratch1
-  - data: panoptic/npm3d-sparseconv_grid_012_R_8_area4
+  - models: panoptic/wheat3d_3heads_v0  #panoptic/pointgroup-embed_clustertype1_scratch1
+  - data: panoptic/wheat3d_sphere_025_003_v0
   - sota # Contains current SOTA results on different datasets (extracted from papers !).
 #  - hydra/job_logging: custom
   - hydra/output: custom  # add the support for user-defined experiment folder (where to save the experiment files)
 
 
-job_name: ablation_area4_set2  # prefix name for saving the experiment file.
+job_name: wheat3d_test_run  # prefix name for saving the experiment file.
+# TODO: not sure how model_name integrated into workflow (maybe just giving name for logging)
 model_name: PointGroup-PAPER # Name of the specific model to load
 update_lr_scheduler_on: "on_epoch" # ["on_epoch", "on_num_batch", "on_num_sample"]
 selection_stage: ""

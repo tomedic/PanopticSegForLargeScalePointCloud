@@ -214,6 +214,18 @@ def discriminative_loss(
     batch: torch.Tensor,
     feature_dim,
 ):
+    # Handle empty batches (no instance points in current sample)
+    if embedding_logits is None or embedding_logits.numel() == 0 or batch.numel() == 0:
+        device = instance_labels.device if isinstance(instance_labels, torch.Tensor) else (
+            embedding_logits.device if isinstance(embedding_logits, torch.Tensor) else "cpu"
+        )
+        zero = torch.tensor(0.0, device=device)
+        return {
+            "ins_loss": zero,
+            "ins_var_loss": zero,
+            "ins_dist_loss": zero,
+            "ins_reg_loss": zero,
+        }
     loss = []
     loss_var = []
     loss_dist = []
