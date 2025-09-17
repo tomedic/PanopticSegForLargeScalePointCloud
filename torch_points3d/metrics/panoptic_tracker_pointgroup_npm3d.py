@@ -318,6 +318,9 @@ class PanopticTracker(SegmentationTracker):
             os.mkdir("viz_for_test_valid_proposals")
         if not hasattr(self, "spheres_count"):
             self.spheres_count = 0
+        # Guard: if model did not produce clusters (e.g., prepare_epoch not reached), skip dumping
+        if getattr(outputs, "clusters", None) is None:
+            return
         j = 0
         for i, cluster in enumerate(outputs.clusters):
             semantic_prob = outputs.semantic_logits[cluster, :].softmax(dim=1)

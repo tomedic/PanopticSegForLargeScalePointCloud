@@ -37,8 +37,8 @@ OBJECT_LABEL = {name: i for i, name in INV_OBJECT_LABEL.items()}
 ################################### UTILS #######################################
 def object_name_to_label(object_class):
     """if labels within .ply are strings corresponding to INV_OBJECT_LABEL values/names,
-     convert from name in INV_OBJECT_LABEL to an int"""
-    object_label = OBJECT_LABEL.get(object_class, OBJECT_LABEL["unclassified"])
+     convert from name in INV_OBJECT_LABEL to an int, in case of unknown name, return -1"""
+    object_label = OBJECT_LABEL.get(object_class, -1)
     return object_label
 
 
@@ -59,8 +59,19 @@ def read_raw_wheat3d_format(train_file, label_out=True, verbose=False, debug=Fal
     xyz = np.vstack((data["x"], data["y"], data["z"])).astype(np.float32).T
     if not label_out:
         return xyz
-    semantic_labels = data["scalar_classes"].astype(np.int64) - 1
-    instance_labels = data["scalar_instances"].astype(np.int64) + 1
+    # Expect semantic labels in {0: background, 1: wheat_head} with no offset
+    # and instance labels as 0 for background, >=1 for wheat instances.
+    semantic_labels = data["scalar_classes"].astype(np.int64)
+    instance_labels = data["scalar_instances"].astype(np.int64)
+    if verbose or debug:
+        try:
+            import numpy as _np
+            print(f"[wheat3d] read {train_file}")
+            print(f"  unique semantic labels: {_np.unique(semantic_labels)}")
+            print(f"  unique instance labels (min..max): {instance_labels.min()}..{instance_labels.max()}")
+        except Exception:
+            pass
+
 
     # TODO: add optional extraction of extra features (Intensity, RGB, etc.)
 
